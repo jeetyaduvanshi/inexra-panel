@@ -15,10 +15,10 @@ import {
 } from "@/components/ui/table";
 
 const links = [
-    { sn: 1, status: "Complete", url: "https://panel.sixsenseresearch.com/client-redirect-url?uid=xxx&status=complete" },
-    { sn: 2, status: "Disqualify", url: "https://panel.sixsenseresearch.com/client-redirect-url?uid=xxx&status=disqualify" },
-    { sn: 3, status: "Quota Full", url: "https://panel.sixsenseresearch.com/client-redirect-url?uid=xxx&status=quotaFull" },
-    { sn: 4, status: "Security Term", url: "https://panel.sixsenseresearch.com/client-redirect-url?uid=xxx&status=securityTerm" },
+    { sn: 1, status: "Complete", url: "https://inexra-panel.vercel.app/client-redirect-url?uid=[uid]&status=complete" },
+    { sn: 2, status: "Disqualify", url: "https://inexra-panel.vercel.app/client-redirect-url?uid=[uid]&status=terminate" },
+    { sn: 3, status: "Quota Full", url: "https://inexra-panel.vercel.app/client-redirect-url?uid=[uid]&status=quota_full" },
+    { sn: 4, status: "Security Term", url: "https://inexra-panel.vercel.app/client-redirect-url?uid=[uid]&status=security_terminate" },
 ];
 
 export default function LinksPage() {
