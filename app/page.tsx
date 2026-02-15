@@ -1,64 +1,62 @@
-import Image from "next/image";
+import { Header } from "@/components/layout/Header";
+import { MetricCard } from "@/components/dashboard/MetricCard";
+import { StatusBreakdown } from "@/components/dashboard/StatusBreakdown";
+import { MonthlyStatistics } from "@/components/dashboard/MonthlyStatistics";
 
 export default function Home() {
+  // Top Row Stats (Today's Project Statistics)
+  const todayStats = [
+    { label: "Completed", value: 0 },
+    { label: "Disqualified", value: 0 },
+    { label: "Quota Full", value: 0 },
+    { label: "Security Fail", value: 2, textColor: "text-red-500" }, // Red based on context
+    { label: "Drop", value: 4 },
+  ];
+
+  // Status Breakdown Data
+  const statusItems = [
+    { label: "Bidding", value: 0, colorClass: "text-blue-600" },
+    { label: "Testing", value: 5, colorClass: "text-yellow-500" },
+    { label: "Running", value: 4822, colorClass: "text-cyan-500" },
+    { label: "On Holds", value: 115, colorClass: "text-gray-900" },
+    { label: "Awaiting - IDs", value: 0, colorClass: "text-gray-500" },
+    { label: "Closed", value: 11, colorClass: "text-red-500" },
+    { label: "Completed", value: 2, colorClass: "text-green-600" },
+  ];
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="min-h-screen bg-neutral-50/50 flex flex-col font-sans">
+      <Header />
+
+      <main className="flex-1 p-6 space-y-8 max-w-[1600px] w-full mx-auto">
+
+        {/* Section 1: Today's Project Statistics */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-inexra-navy tracking-tight">Today&apos;s Project Statistics</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {todayStats.map((stat) => (
+              <MetricCard
+                key={stat.label}
+                label={stat.label}
+                value={stat.value}
+                textColor={stat.textColor}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Section 2: Project Status Breakdown */}
+        <section className="space-y-4">
+          {/* Note: In reference, there isn't a visible header for this strip, but it acts as a breakdown */}
+          <StatusBreakdown items={statusItems} />
+        </section>
+
+        {/* Section 3: Monthly Statistics */}
+        <section className="space-y-4">
+          {/* The component has its own internal header if needed, but we can wrap it */}
+          <MonthlyStatistics />
+        </section>
+
       </main>
     </div>
   );
