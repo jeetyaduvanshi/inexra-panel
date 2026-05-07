@@ -69,7 +69,7 @@ export function SurveyDataTable({ surveys, onGenerateLink, isLoading }: SurveyDa
                     {surveys.length === 0 ? (
                         <tr>
                             <td colSpan={14} className="px-3 py-8 text-center text-gray-500">
-                                No survey data available. Click "Fetch Data" to load surveys.
+                                No survey data available. Click &quot;Fetch Data&quot; to load surveys.
                             </td>
                         </tr>
                     ) : (

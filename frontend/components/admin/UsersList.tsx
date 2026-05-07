@@ -134,7 +134,7 @@ export function UsersList() {
                                 <div className="col-span-2 space-y-2">
                                     <Label htmlFor="role">Role <span className="text-red-500">*</span></Label>
                                     <Select
-                                        onValueChange={(val: any) => setNewUser({ ...newUser, role: val })}
+                                        onValueChange={(val: string) => setNewUser({ ...newUser, role: val as User["role"] })}
                                         defaultValue={newUser.role}
                                     >
                                         <SelectTrigger>

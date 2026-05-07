@@ -142,7 +142,7 @@ export function GenerateLinkSection({ selectedSurveyId, selectedIpAddress }: Gen
                         readOnly
                         className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 cursor-not-allowed"
                     />
-                    <p className="mt-1 text-xs text-gray-500">Auto-detected from user's network</p>
+                    <p className="mt-1 text-xs text-gray-500">Auto-detected from user&apos;s network</p>
                 </div>
 
                 {/* Generate Button */}

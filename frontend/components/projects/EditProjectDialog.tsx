@@ -333,7 +333,9 @@ export function EditProjectDialog({ project, open, onClose, onSuccess }: EditPro
     const [activeTab, setActiveTab] = useState("overview");
 
     useEffect(() => {
-        if (open) setActiveTab("overview");
+        if (open) {
+            setTimeout(() => setActiveTab("overview"), 0);
+        }
     }, [open]);
 
     if (!project) return null;
