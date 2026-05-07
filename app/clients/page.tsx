@@ -1,14 +1,10 @@
 "use client";
 
 import React from "react";
-import { Header } from "@/components/layout/Header";
-import { CommonList, Entity } from "@/components/admin/CommonList";
+import { Header } from "@/frontend/components/layout/Header";
+import { CommonList, Entity } from "@/frontend/components/admin/CommonList";
 
-const dummyClients: Entity[] = [
-    { id: 1, sn: 1, name: "Link Information Technology", email: "sandeep@gmail.com", contactPerson: "Sandeep", number: "8574569858", paymentTerm: "45" },
-    { id: 2, sn: 2, name: "ORG", email: "shyam@gmail.com", contactPerson: "Shyam", number: "8700375392", paymentTerm: "45" },
-    { id: 3, sn: 3, name: "Azure Knowledge corporation", email: "megha@gmail.com", contactPerson: "Megha", number: "9310383718", paymentTerm: "45" },
-];
+const dummyClients: Entity[] = [];
 
 export default function ClientsPage() {
     return (

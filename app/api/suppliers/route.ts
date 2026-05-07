@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import Supplier from '@/models/Supplier';
+import dbConnect from '@/backend/lib/db';
+import Supplier from '@/backend/models/Supplier';
 import crypto from 'crypto';
 
 export async function POST(req: Request) {

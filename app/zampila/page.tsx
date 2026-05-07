@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Header } from '@/components/layout/Header';
-import { ApiSettingsModal } from '@/components/zampila/ApiSettingsModal';
-import { SurveyDataTable } from '@/components/zampila/SurveyDataTable';
-import { GenerateLinkSection } from '@/components/zampila/GenerateLinkSection';
-import { LoaderOverlay } from '@/components/ui/LoaderOverlay';
+import { Header } from '@/frontend/components/layout/Header';
+import { ApiSettingsModal } from '@/frontend/components/zampila/ApiSettingsModal';
+import { SurveyDataTable } from '@/frontend/components/zampila/SurveyDataTable';
+import { GenerateLinkSection } from '@/frontend/components/zampila/GenerateLinkSection';
+import { LoaderOverlay } from '@/frontend/components/ui/LoaderOverlay';
 
 interface Survey {
     _id: string;

@@ -1,6 +1,6 @@
 import React from "react";
-import { Header } from "@/components/layout/Header";
-import { UsersList } from "@/components/admin/UsersList";
+import { Header } from "@/frontend/components/layout/Header";
+import { UsersList } from "@/frontend/components/admin/UsersList";
 
 export default function UsersPage() {
     return (

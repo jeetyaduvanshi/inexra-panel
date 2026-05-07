@@ -1,14 +1,10 @@
 "use client";
 
 import React from "react";
-import { Header } from "@/components/layout/Header";
-import { CommonList, Entity } from "@/components/admin/CommonList";
+import { Header } from "@/frontend/components/layout/Header";
+import { CommonList, Entity } from "@/frontend/components/admin/CommonList";
 
-const dummyVendors: Entity[] = [
-    { id: 1, sn: 1, name: "Internal Team", email: "sales@sixsenseresearch.com", contactPerson: "Daniel", number: "8802765755", paymentTerm: "15" },
-    { id: 2, sn: 2, name: "HX Survey", email: "hx@gmail.com", contactPerson: "hx", number: "8756584525", paymentTerm: "60" },
-    { id: 3, sn: 3, name: "TMT Insight", email: "tmt@gmail.com", contactPerson: "tmt", number: "8755958654", paymentTerm: "60" },
-];
+const dummyVendors: Entity[] = [];
 
 export default function VendorsPage() {
     return (

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import GeneratedLink from '@/models/GeneratedLink';
+import dbConnect from '@/backend/lib/db';
+import GeneratedLink from '@/backend/models/GeneratedLink';
 
 // GET - Dashboard aggregation stats for Zampila
 // Returns today's counts + rates via MongoDB aggregation pipeline

@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { Header } from "@/components/layout/Header";
+import { Header } from "@/frontend/components/layout/Header";
 import { Copy } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/frontend/components/ui/button";
+import { Input } from "@/frontend/components/ui/input";
 import {
     Table,
     TableBody,
@@ -12,7 +12,7 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from "@/components/ui/table";
+} from "@/frontend/components/ui/table";
 
 const links = [
     { sn: 1, status: "Complete", url: "https://inexra-panel.vercel.app/client-redirect-url?uid=[uid]&status=complete" },

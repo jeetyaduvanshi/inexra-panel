@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import ClientConfiguration from '@/models/ClientConfiguration';
-import ZampilaSurvey from '@/models/ZampilaSurvey';
-import mockData from '@/data/mockZampila.json';
+import dbConnect from '@/backend/lib/db';
+import ClientConfiguration from '@/backend/models/ClientConfiguration';
+import ZampilaSurvey from '@/backend/models/ZampilaSurvey';
+import mockData from '@/backend/data/mockZampila.json';
 
 // GET - Fetch data from Zampila API (server-side proxy to avoid CORS)
 export async function GET() {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import GeneratedLink from '@/models/GeneratedLink';
-import ClientConfiguration from '@/models/ClientConfiguration';
+import dbConnect from '@/backend/lib/db';
+import GeneratedLink from '@/backend/models/GeneratedLink';
+import ClientConfiguration from '@/backend/models/ClientConfiguration';
 
 // Survey tracking endpoint for Zampila
 // Handles initial click: /api/s/zampila/[surveyId]?txid=XXXXX

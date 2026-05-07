@@ -5,8 +5,8 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, Lock, Loader2, ArrowRight } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/frontend/components/ui/input";
+import { Button } from "@/frontend/components/ui/button";
 
 export default function LoginPage() {
     const router = useRouter();

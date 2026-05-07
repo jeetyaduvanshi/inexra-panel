@@ -1,6 +1,6 @@
 import React from "react";
-import { Header } from "@/components/layout/Header";
-import { ProjectList } from "@/components/projects/ProjectList";
+import { Header } from "@/frontend/components/layout/Header";
+import { ProjectList } from "@/frontend/components/projects/ProjectList";
 
 export default function ProjectsPage() {
     return (

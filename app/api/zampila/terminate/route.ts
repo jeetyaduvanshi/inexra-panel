@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import GeneratedLink from '@/models/GeneratedLink';
-import ZampilaSurvey from '@/models/ZampilaSurvey';
+import dbConnect from '@/backend/lib/db';
+import GeneratedLink from '@/backend/models/GeneratedLink';
+import ZampilaSurvey from '@/backend/models/ZampilaSurvey';
 
 // Callback: Survey Terminated / Disqualified
 // /api/zampila/terminate?txid=XXXXX

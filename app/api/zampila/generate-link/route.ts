@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import dbConnect from '@/lib/db';
-import GeneratedLink from '@/models/GeneratedLink';
+import dbConnect from '@/backend/lib/db';
+import GeneratedLink from '@/backend/models/GeneratedLink';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://inexra-panel.com';
 

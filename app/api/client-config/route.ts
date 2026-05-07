@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import ClientConfiguration from '@/models/ClientConfiguration';
+import dbConnect from '@/backend/lib/db';
+import ClientConfiguration from '@/backend/models/ClientConfiguration';
 
 // GET - Fetch client configuration(s)
 export async function GET(req: Request) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import mockData from '@/data/mockZampila.json';
+import mockData from '@/backend/data/mockZampila.json';
 
 // Mock API Route for testing Zampila integration
 // Simulates a 2-second network latency before returning data
