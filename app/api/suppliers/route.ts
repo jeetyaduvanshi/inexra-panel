@@ -3,10 +3,34 @@ import dbConnect from '@/backend/lib/db';
 import Supplier from '@/backend/models/Supplier';
 import crypto from 'crypto';
 
+import mongoose from 'mongoose';
+
+function getBaseUrl(req: Request): string {
+    const originHeader = req.headers.get('origin');
+    if (originHeader) return originHeader;
+
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    if (host) {
+        const proto = req.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+        return `${proto}://${host}`;
+    }
+
+    return process.env.NEXT_PUBLIC_BASE_URL || 'https://www.inexraresearch.com';
+}
+
 export async function POST(req: Request) {
     try {
         await dbConnect();
-        const { projectId, supplierName, originalLink } = await req.json();
+        const body = await req.json();
+        const {
+            projectId,
+            supplierName,
+            originalLink,
+            cpi,
+            requiredCompletes,
+            maxRedirects,
+            notes,
+        } = body;
 
         if (!projectId || !supplierName || !originalLink) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -14,12 +38,38 @@ export async function POST(req: Request) {
 
         // Generate unique 8-char slug
         const trackingSlug = crypto.randomBytes(4).toString('hex');
+        const baseUrl = getBaseUrl(req);
+
+        // Auto-generate URLs
+        const surveyLink = `${baseUrl}/api/s/${trackingSlug}?uid=[uid]`;
+        const testLink = `${baseUrl}/api/s/${trackingSlug}?uid=TEST_USER`;
+        const completionUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=complete`;
+        const terminateUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=terminate`;
+        const quotaFullUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=quota_full`;
+        const securityUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=security_terminate`;
 
         const supplier = await Supplier.create({
             projectId,
-            supplierName,
-            originalLink,
+            supplierName: supplierName.trim(),
+            originalLink: originalLink.trim(),
             trackingSlug,
+            cpi: typeof cpi === 'number' ? cpi : (parseFloat(cpi) || 0),
+            requiredCompletes: typeof requiredCompletes === 'number' ? requiredCompletes : (parseInt(requiredCompletes, 10) || 0),
+            maxRedirects: typeof maxRedirects === 'number' ? maxRedirects : (parseInt(maxRedirects, 10) || 500000),
+            surveyLink,
+            testLink,
+            completionUrl,
+            terminateUrl,
+            quotaFullUrl,
+            securityUrl,
+            notes: notes || '',
+            status: 'active',
+            hits: 0,
+            completes: 0,
+            disqualified: 0,
+            quotaFull: 0,
+            securityTerm: 0,
+            drop: 0,
         });
 
         return NextResponse.json({ success: true, data: supplier });
@@ -34,15 +84,134 @@ export async function GET(req: Request) {
         await dbConnect();
         const { searchParams } = new URL(req.url);
         const projectId = searchParams.get('projectId');
+        const supplierId = searchParams.get('supplierId') || searchParams.get('id');
 
-        if (!projectId) {
-            return NextResponse.json({ error: 'Project ID required' }, { status: 400 });
+        if (!projectId && !supplierId) {
+            return NextResponse.json({ error: 'Project ID or Supplier ID required' }, { status: 400 });
         }
 
-        const suppliers = await Supplier.find({ projectId }).sort({ createdAt: -1 });
-        return NextResponse.json({ success: true, data: suppliers });
+        const query: Record<string, unknown> = {};
+        if (projectId) query.projectId = projectId;
+        if (supplierId) {
+            if (mongoose.Types.ObjectId.isValid(supplierId)) {
+                query._id = supplierId;
+            } else {
+                query.trackingSlug = supplierId;
+            }
+        }
+
+        const suppliers = await Supplier.find(query).sort({ createdAt: -1 });
+        const baseUrl = getBaseUrl(req);
+
+        // Ensure all URLs are populated even for legacy records and backfill DB
+        const data = await Promise.all(
+            suppliers.map(async (s) => {
+                const doc = s.toObject();
+                let needsUpdate = false;
+                const updateFields: Record<string, string> = {};
+
+                if (!doc.surveyLink && doc.trackingSlug) {
+                    doc.surveyLink = `${baseUrl}/api/s/${doc.trackingSlug}?uid=[uid]`;
+                    updateFields.surveyLink = doc.surveyLink;
+                    needsUpdate = true;
+                }
+                if (!doc.testLink && doc.trackingSlug) {
+                    doc.testLink = `${baseUrl}/api/s/${doc.trackingSlug}?uid=TEST_USER`;
+                    updateFields.testLink = doc.testLink;
+                    needsUpdate = true;
+                }
+                if (!doc.completionUrl) {
+                    doc.completionUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=complete`;
+                    updateFields.completionUrl = doc.completionUrl;
+                    needsUpdate = true;
+                }
+                if (!doc.terminateUrl) {
+                    doc.terminateUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=terminate`;
+                    updateFields.terminateUrl = doc.terminateUrl;
+                    needsUpdate = true;
+                }
+                if (!doc.quotaFullUrl) {
+                    doc.quotaFullUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=quota_full`;
+                    updateFields.quotaFullUrl = doc.quotaFullUrl;
+                    needsUpdate = true;
+                }
+                if (!doc.securityUrl) {
+                    doc.securityUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=security_terminate`;
+                    updateFields.securityUrl = doc.securityUrl;
+                    needsUpdate = true;
+                }
+
+                if (needsUpdate) {
+                    Supplier.findByIdAndUpdate(s._id, updateFields).catch((err) =>
+                        console.error('Failed to backfill supplier URLs:', err)
+                    );
+                }
+
+                return doc;
+            })
+        );
+
+        return NextResponse.json({ success: true, data });
     } catch (error) {
         console.error('Fetch Suppliers Error:', error);
         return NextResponse.json({ success: false, error: 'Failed to fetch suppliers' }, { status: 500 });
+    }
+}
+
+export async function DELETE(req: Request) {
+    try {
+        await dbConnect();
+        const { searchParams } = new URL(req.url);
+        let id = searchParams.get('id');
+
+        if (!id) {
+            try {
+                const body = await req.json();
+                id = body?.id;
+            } catch {}
+        }
+
+        if (!id) {
+            return NextResponse.json({ error: 'Supplier ID required' }, { status: 400 });
+        }
+
+        const deleted = await Supplier.findByIdAndDelete(id);
+        if (!deleted) {
+            return NextResponse.json({ success: false, error: 'Supplier not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true, message: 'Supplier deleted successfully' });
+    } catch (error) {
+        console.error('Delete Supplier Error:', error);
+        return NextResponse.json({ success: false, error: 'Failed to delete supplier' }, { status: 500 });
+    }
+}
+
+export async function PATCH(req: Request) {
+    try {
+        await dbConnect();
+        const body = await req.json();
+        const { id, status, cpi, requiredCompletes, maxRedirects, notes } = body;
+
+        if (!id) {
+            return NextResponse.json({ error: 'Supplier ID required' }, { status: 400 });
+        }
+
+        const updates: Record<string, unknown> = {};
+        if (status !== undefined) updates.status = status;
+        if (cpi !== undefined) updates.cpi = parseFloat(cpi) || 0;
+        if (requiredCompletes !== undefined) updates.requiredCompletes = parseInt(requiredCompletes, 10) || 0;
+        if (maxRedirects !== undefined) updates.maxRedirects = parseInt(maxRedirects, 10) || 500000;
+        if (notes !== undefined) updates.notes = notes;
+
+        const updated = await Supplier.findByIdAndUpdate(id, updates, { new: true });
+        if (!updated) {
+            return NextResponse.json({ success: false, error: 'Supplier not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true, data: updated });
+    } catch (error) {
+        console.error('Update Supplier Error:', error);
+        return NextResponse.json({ success: false, error: 'Failed to update supplier' }, { status: 500 });
     }
 }

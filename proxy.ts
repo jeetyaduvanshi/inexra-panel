@@ -10,9 +10,12 @@ export function proxy(request: NextRequest) {
         pathname === '/login' ||
         pathname.startsWith('/api/auth') ||
         pathname.startsWith('/api/s/') || // Legacy tracking links
+        pathname.startsWith('/api/survey-start') || // Core survey entry endpoint
+        pathname.startsWith('/survey-start') || // Core survey entry endpoint alias
         pathname.startsWith('/client-api-data/') || // Zamplia tracking links
         pathname.startsWith('/client-redirect-url') || // Zamplia callback redirect pages
         pathname.startsWith('/api/zamplia/callback') || // Zamplia callback API
+        pathname.startsWith('/api/survey-callback') || // Survey callback API
         pathname.startsWith('/_next') ||
         pathname === '/favicon.ico';
 

@@ -8,15 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/frontend/components/
 import { Button } from "@/frontend/components/ui/button";
 import { Input } from "@/frontend/components/ui/input";
 import { Label } from "@/frontend/components/ui/label";
-import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/frontend/components/ui/table";
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/frontend/components/ui/select";
 import { Badge } from "@/frontend/components/ui/badge";
 import { ScrollArea } from "@/frontend/components/ui/scroll-area";
-import { Loader2, Copy, Plus, ExternalLink, X } from "lucide-react";
+import {
+    Loader2, Copy, Plus, ExternalLink, X, Check, ChevronDown, ChevronUp,
+    Trash2, Play, Pause, Link2, RefreshCw
+} from "lucide-react";
 import { cn } from "@/frontend/lib/utils";
 import { toast } from "@/frontend/lib/toast-store";
 import { AddProjectForm, type ProjectFormData } from "./AddProjectForm";
@@ -26,13 +23,29 @@ import { PROJECT_STATUSES } from "@/frontend/lib/constants";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Supplier {
-    _id          : string;
-    supplierName : string;
-    originalLink : string;
-    trackingSlug : string;
-    hits         : number;
-    completes    : number;
-    status       : string;
+    _id                : string;
+    projectId          : string;
+    supplierName       : string;
+    originalLink       : string;
+    trackingSlug       : string;
+    cpi?               : number;
+    requiredCompletes? : number;
+    maxRedirects?      : number;
+    surveyLink?        : string;
+    testLink?          : string;
+    completionUrl?     : string;
+    terminateUrl?      : string;
+    quotaFullUrl?      : string;
+    securityUrl?       : string;
+    hits?              : number;
+    completes?         : number;
+    disqualified?      : number;
+    quotaFull?         : number;
+    securityTerm?      : number;
+    drop?              : number;
+    status?            : "active" | "paused" | string;
+    notes?             : string;
+    createdAt?         : string;
 }
 
 interface EditProjectDialogProps {
@@ -168,18 +181,35 @@ function StatusTab({
 // ─── Suppliers Tab ────────────────────────────────────────────────────────────
 
 function SuppliersTab({ project }: { project: Project }) {
-    const [suppliers, setSuppliers]           = useState<Supplier[]>([]);
-    const [loading, setLoading]               = useState(false);
-    const [newSupplierName, setNewSupplierName] = useState("");
-    const [newSupplierLink, setNewSupplierLink] = useState("");
-    const [addingSupplier, setAddingSupplier] = useState(false);
+    const [suppliers, setSuppliers]                     = useState<Supplier[]>([]);
+    const [loading, setLoading]                         = useState(false);
+    const [newSupplierName, setNewSupplierName]         = useState("");
+    const [newSupplierLink, setNewSupplierLink]         = useState("");
+    const [newSupplierCpi, setNewSupplierCpi]           = useState("");
+    const [newSupplierReqComp, setNewSupplierReqComp]   = useState("");
+    const [newSupplierMaxRedir, setNewSupplierMaxRedir] = useState("500000");
+    const [addingSupplier, setAddingSupplier]           = useState(false);
+    const [copiedKey, setCopiedKey]                     = useState<string | null>(null);
+    const [expandedSuppliers, setExpandedSuppliers]     = useState<Record<string, boolean>>({});
+    const [actionLoadingId, setActionLoadingId]         = useState<string | null>(null);
+
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://www.inexraresearch.com";
 
     const fetchSuppliers = async () => {
         setLoading(true);
         try {
             const res  = await fetch(`/api/suppliers?projectId=${project.id}`);
             const data = await res.json();
-            if (data.success) setSuppliers(data.data);
+            if (data.success) {
+                setSuppliers(data.data);
+                setExpandedSuppliers((prev) => {
+                    const next = { ...prev };
+                    data.data.forEach((s: Supplier) => {
+                        if (next[s._id] === undefined) next[s._id] = true;
+                    });
+                    return next;
+                });
+            }
         } catch {
             toast.error("Failed to load suppliers");
         } finally {
@@ -187,139 +217,637 @@ function SuppliersTab({ project }: { project: Project }) {
         }
     };
 
-    useEffect(() => { fetchSuppliers(); }, [project.id]);
+    useEffect(() => {
+        fetchSuppliers();
+    }, [project.id]);
 
-    const handleAddSupplier = async () => {
+    const handleAddSupplier = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!newSupplierName.trim() || !newSupplierLink.trim()) {
-            toast.warning("Please fill in supplier name and link");
+            toast.warning("Please fill in supplier name and original survey link");
             return;
         }
+
         setAddingSupplier(true);
         try {
             const res = await fetch("/api/suppliers", {
                 method : "POST",
                 headers: { "Content-Type": "application/json" },
                 body   : JSON.stringify({
-                    projectId    : project.id,
-                    supplierName : newSupplierName.trim(),
-                    originalLink : newSupplierLink.trim(),
+                    projectId         : project.id,
+                    supplierName      : newSupplierName.trim(),
+                    originalLink      : newSupplierLink.trim(),
+                    cpi               : parseFloat(newSupplierCpi) || 0,
+                    requiredCompletes : parseInt(newSupplierReqComp, 10) || 0,
+                    maxRedirects      : parseInt(newSupplierMaxRedir, 10) || 500000,
                 }),
             });
-            if (res.ok) {
-                toast.success("Supplier added successfully");
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast.success("Supplier added successfully with auto-generated links!");
                 setNewSupplierName("");
                 setNewSupplierLink("");
+                setNewSupplierCpi("");
+                setNewSupplierReqComp("");
+                setNewSupplierMaxRedir("500000");
                 fetchSuppliers();
             } else {
-                toast.error("Failed to add supplier");
+                toast.error(data.error || "Failed to add supplier");
             }
         } catch {
-            toast.error("Network error");
+            toast.error("Network error adding supplier");
         } finally {
             setAddingSupplier(false);
         }
     };
 
-    const copyToClipboard = (text: string) => {
+    const copyToClipboard = (text: string, key: string, label: string) => {
         navigator.clipboard.writeText(text);
-        toast.info("Link copied to clipboard");
+        setCopiedKey(key);
+        setTimeout(() => setCopiedKey(null), 2000);
+        toast.info(`${label} copied to clipboard`);
     };
 
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const toggleSupplierExpansion = (id: string) => {
+        setExpandedSuppliers((prev) => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const handleToggleStatus = async (sup: Supplier) => {
+        const nextStatus = sup.status === "paused" ? "active" : "paused";
+        setActionLoadingId(sup._id);
+        try {
+            const res = await fetch("/api/suppliers", {
+                method : "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body   : JSON.stringify({ id: sup._id, status: nextStatus }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast.success(`Supplier "${sup.supplierName}" marked as ${nextStatus}`);
+                fetchSuppliers();
+            } else {
+                toast.error(data.error || "Failed to update supplier status");
+            }
+        } catch {
+            toast.error("Network error");
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
+    const handleDeleteSupplier = async (id: string, name: string) => {
+        if (!window.confirm(`Are you sure you want to remove supplier "${name}"? This action cannot be undone.`)) {
+            return;
+        }
+        setActionLoadingId(id);
+        try {
+            const res = await fetch(`/api/suppliers?id=${id}`, {
+                method: "DELETE",
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast.success(`Supplier "${name}" removed successfully`);
+                fetchSuppliers();
+            } else {
+                toast.error(data.error || "Failed to delete supplier");
+            }
+        } catch {
+            toast.error("Network error");
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
 
     return (
-        <div className="flex flex-col gap-4 p-6 h-full overflow-hidden">
-            {/* Add Supplier */}
-            <div className="bg-gray-50 p-4 rounded-lg border space-y-3 flex-shrink-0">
-                <h3 className="text-xs font-bold text-gray-700 uppercase">Add New Supplier</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                        <Label className="text-xs">Supplier Name</Label>
+        <div className="flex flex-col gap-4 p-5 h-full overflow-hidden bg-neutral-50/50">
+            {/* ── Add New Supplier Card ────────────────────────────────────── */}
+            <form onSubmit={handleAddSupplier} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3 flex-shrink-0">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                    <span className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <Plus className="w-3.5 h-3.5 text-inexra-teal" /> Add New Supplier
+                    </span>
+                    <span className="text-[11px] text-gray-400">Configure partner targeting, caps & links</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    {/* Supplier Name */}
+                    <div className="md:col-span-4 space-y-1">
+                        <Label className="text-[11px] font-semibold text-gray-600">Supplier Name *</Label>
                         <Input
                             value={newSupplierName}
                             onChange={(e) => setNewSupplierName(e.target.value)}
-                            placeholder="e.g. Cint, Lucid"
-                            className="h-8 text-xs bg-white"
+                            placeholder="e.g. Cint, Lucid, PureSpectrum"
+                            className="h-8 text-xs bg-gray-50/50 focus:bg-white"
                         />
                     </div>
-                    <div className="space-y-1 md:col-span-2">
-                        <Label className="text-xs">Original Survey Link</Label>
-                        <div className="flex gap-2">
-                            <Input
-                                value={newSupplierLink}
-                                onChange={(e) => setNewSupplierLink(e.target.value)}
-                                placeholder="https://client-survey.com/..."
-                                className="h-8 text-xs bg-white"
-                            />
-                            <Button
-                                onClick={handleAddSupplier}
-                                disabled={addingSupplier}
-                                size="sm"
-                                className="h-8 bg-inexra-teal hover:bg-teal-600 text-white flex-shrink-0"
-                            >
-                                {addingSupplier ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-4 h-4" />}
-                            </Button>
-                        </div>
+
+                    {/* Original Survey Link */}
+                    <div className="md:col-span-8 space-y-1">
+                        <Label className="text-[11px] font-semibold text-gray-600">Original Survey Link *</Label>
+                        <Input
+                            value={newSupplierLink}
+                            onChange={(e) => setNewSupplierLink(e.target.value)}
+                            placeholder="https://client-survey.com/entry?pid=...&uid=[uid]"
+                            className="h-8 text-xs bg-gray-50/50 focus:bg-white font-mono text-[11px]"
+                        />
+                    </div>
+
+                    {/* CPI */}
+                    <div className="md:col-span-3 space-y-1">
+                        <Label className="text-[11px] font-semibold text-gray-600">Supplier CPI ($)</Label>
+                        <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={newSupplierCpi}
+                            onChange={(e) => setNewSupplierCpi(e.target.value)}
+                            placeholder="0.00"
+                            className="h-8 text-xs bg-gray-50/50 focus:bg-white"
+                        />
+                    </div>
+
+                    {/* Required Completes */}
+                    <div className="md:col-span-3 space-y-1">
+                        <Label className="text-[11px] font-semibold text-gray-600">Req Completes</Label>
+                        <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={newSupplierReqComp}
+                            onChange={(e) => setNewSupplierReqComp(e.target.value)}
+                            placeholder="0 (Unlimited)"
+                            className="h-8 text-xs bg-gray-50/50 focus:bg-white"
+                        />
+                    </div>
+
+                    {/* Max Redirects */}
+                    <div className="md:col-span-3 space-y-1">
+                        <Label className="text-[11px] font-semibold text-gray-600">Max Redirects (Cap)</Label>
+                        <Input
+                            type="number"
+                            min="0"
+                            step="100"
+                            value={newSupplierMaxRedir}
+                            onChange={(e) => setNewSupplierMaxRedir(e.target.value)}
+                            placeholder="500000"
+                            className="h-8 text-xs bg-gray-50/50 focus:bg-white"
+                        />
+                    </div>
+
+                    {/* Submit Button */}
+                    <div className="md:col-span-3 flex items-end">
+                        <Button
+                            type="submit"
+                            disabled={addingSupplier}
+                            size="sm"
+                            className="w-full h-8 bg-inexra-teal hover:bg-teal-600 text-white text-xs font-semibold shadow-sm"
+                        >
+                            {addingSupplier ? (
+                                <>
+                                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Adding...
+                                </>
+                            ) : (
+                                <>
+                                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Supplier
+                                </>
+                            )}
+                        </Button>
                     </div>
                 </div>
-            </div>
+            </form>
 
-            {/* Suppliers list */}
-            <div className="border rounded-md overflow-hidden flex flex-col flex-1 min-h-0">
-                <div className="bg-gray-100 px-4 py-2 text-xs font-bold text-gray-600 uppercase border-b flex-shrink-0">
-                    Connected Suppliers ({suppliers.length})
+            {/* ── Connected Suppliers List ─────────────────────────────────── */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden flex flex-col flex-1 min-h-0 bg-white shadow-sm">
+                <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            Connected Suppliers ({suppliers.length})
+                        </span>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={fetchSuppliers}
+                        disabled={loading}
+                        className="h-7 text-xs text-gray-500 hover:text-gray-800"
+                    >
+                        <RefreshCw className={cn("w-3 h-3 mr-1", loading && "animate-spin")} /> Refresh
+                    </Button>
                 </div>
-                <ScrollArea className="flex-1 bg-white">
-                    {loading ? (
-                        <div className="flex justify-center p-8">
-                            <Loader2 className="animate-spin text-gray-400" />
+
+                <ScrollArea className="flex-1 p-4">
+                    {loading && suppliers.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-12 text-gray-400 gap-2">
+                            <Loader2 className="w-6 h-6 animate-spin text-inexra-teal" />
+                            <span className="text-xs">Loading suppliers...</span>
                         </div>
                     ) : suppliers.length === 0 ? (
-                        <div className="text-center p-8 text-gray-400 text-sm">
-                            No suppliers added yet.
+                        <div className="text-center p-12 text-gray-400 text-xs">
+                            No suppliers connected to this project yet. Use the form above to add one.
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="text-xs w-[150px]">Name</TableHead>
-                                    <TableHead className="text-xs">Tracking Link</TableHead>
-                                    <TableHead className="text-xs w-[80px]">Hits</TableHead>
-                                    <TableHead className="text-xs w-[80px]">Comp</TableHead>
-                                    <TableHead className="text-xs w-[80px] text-right">Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {suppliers.map((sup) => {
-                                    const trackingUrl = `${baseUrl}/api/s/${sup.trackingSlug}`;
-                                    return (
-                                        <TableRow key={sup._id}>
-                                            <TableCell className="font-medium text-xs">{sup.supplierName}</TableCell>
-                                            <TableCell className="text-xs">
-                                                <div className="flex items-center gap-1.5 bg-gray-50 p-1.5 rounded border max-w-xs">
-                                                    <span className="truncate flex-1 text-gray-600 font-mono text-[10px]">
-                                                        {trackingUrl}
+                        <div className="space-y-4">
+                            {suppliers.map((sup) => {
+                                const isExpanded = expandedSuppliers[sup._id] ?? true;
+                                const isActionLoading = actionLoadingId === sup._id;
+
+                                // Auto-generated links
+                                const liveSurveyUrl = sup.surveyLink || `${baseUrl}/api/s/${sup.trackingSlug}?uid=[uid]`;
+                                const testSurveyUrl = sup.testLink || `${baseUrl}/api/s/${sup.trackingSlug}?uid=TEST_USER`;
+                                const completeUrl   = sup.completionUrl || `${baseUrl}/client-redirect-url?uid=[uid]&status=complete`;
+                                const terminateUrl  = sup.terminateUrl || `${baseUrl}/client-redirect-url?uid=[uid]&status=terminate`;
+                                const quotaFullUrl  = sup.quotaFullUrl || `${baseUrl}/client-redirect-url?uid=[uid]&status=quota_full`;
+                                const securityUrl   = sup.securityUrl || `${baseUrl}/client-redirect-url?uid=[uid]&status=security_terminate`;
+
+                                const isPaused = sup.status === "paused";
+
+                                return (
+                                    <div
+                                        key={sup._id}
+                                        className={cn(
+                                            "border rounded-xl transition-all overflow-hidden bg-white shadow-sm",
+                                            isPaused ? "border-amber-200 bg-amber-50/20" : "border-gray-200 hover:border-gray-300"
+                                        )}
+                                    >
+                                        {/* Card Header & Controls */}
+                                        <div className="p-3.5 bg-gradient-to-r from-gray-50/80 to-white border-b border-gray-100 flex flex-wrap items-center justify-between gap-2.5">
+                                            {/* Supplier identity & status */}
+                                            <div className="flex items-center gap-2.5">
+                                                <span className="font-bold text-sm text-gray-800">
+                                                    {sup.supplierName}
+                                                </span>
+                                                <Badge
+                                                    className={cn(
+                                                        "text-[10px] px-2 py-0.5 font-semibold uppercase tracking-wider",
+                                                        isPaused
+                                                            ? "bg-amber-100 text-amber-700 border-amber-200"
+                                                            : "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                                    )}
+                                                >
+                                                    {sup.status || "active"}
+                                                </Badge>
+
+                                                {/* Target info pills */}
+                                                <div className="hidden sm:flex items-center gap-2 text-[11px] text-gray-500 bg-gray-100/70 px-2 py-0.5 rounded-md border border-gray-200/60">
+                                                    <span>CPI: <strong className="text-gray-700">${(sup.cpi ?? 0).toFixed(2)}</strong></span>
+                                                    <span className="text-gray-300">•</span>
+                                                    <span>Req: <strong className="text-gray-700">{sup.completes ?? 0} / {sup.requiredCompletes ? sup.requiredCompletes : "∞"}</strong></span>
+                                                    <span className="text-gray-300">•</span>
+                                                    <span>Cap: <strong className="text-gray-700">{(sup.maxRedirects ?? 500000).toLocaleString()}</strong></span>
+                                                </div>
+                                            </div>
+
+                                            {/* Per-Supplier Stats Pills */}
+                                            <div className="flex items-center flex-wrap gap-1.5">
+                                                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium" title="Total hits / clicks">
+                                                    <span className="text-slate-400 font-normal">Hits:</span>
+                                                    <strong className="font-bold">{sup.hits ?? 0}</strong>
+                                                </div>
+
+                                                <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 px-2 py-0.5 rounded text-[11px] font-medium" title="Completed surveys">
+                                                    <span className="text-emerald-400 font-normal">Completes:</span>
+                                                    <strong className="font-bold">{sup.completes ?? 0}</strong>
+                                                </div>
+
+                                                <div className="flex items-center gap-1 bg-red-50 border border-red-200 text-red-700 px-2 py-0.5 rounded text-[11px] font-medium" title="Disqualified / Terminated">
+                                                    <span className="text-red-400 font-normal">DQ:</span>
+                                                    <strong className="font-bold">{sup.disqualified ?? 0}</strong>
+                                                </div>
+
+                                                <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded text-[11px] font-medium" title="Quota Full">
+                                                    <span className="text-amber-400 font-normal">Quota:</span>
+                                                    <strong className="font-bold">{sup.quotaFull ?? 0}</strong>
+                                                </div>
+
+                                                <div className="flex items-center gap-1 bg-purple-50 border border-purple-200 text-purple-700 px-2 py-0.5 rounded text-[11px] font-medium" title="Security Terminated">
+                                                    <span className="text-purple-400 font-normal">Security:</span>
+                                                    <strong className="font-bold">{sup.securityTerm ?? 0}</strong>
+                                                </div>
+
+                                                {/* Action buttons */}
+                                                <div className="flex items-center gap-1 ml-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        disabled={isActionLoading}
+                                                        onClick={() => handleToggleStatus(sup)}
+                                                        className={cn(
+                                                            "h-7 px-2 text-[11px] font-medium",
+                                                            isPaused
+                                                                ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                                                : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                        )}
+                                                        title={isPaused ? "Activate Supplier" : "Pause Supplier"}
+                                                    >
+                                                        {isPaused ? <Play className="w-3 h-3 mr-1" /> : <Pause className="w-3 h-3 mr-1" />}
+                                                        {isPaused ? "Resume" : "Pause"}
+                                                    </Button>
+
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => toggleSupplierExpansion(sup._id)}
+                                                        className="h-7 px-2 text-[11px] text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                                                    >
+                                                        <Link2 className="w-3 h-3 mr-1 text-inexra-teal" />
+                                                        Links
+                                                        {isExpanded ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
+                                                    </Button>
+
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        disabled={isActionLoading}
+                                                        onClick={() => handleDeleteSupplier(sup._id, sup.supplierName)}
+                                                        className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                        title="Remove supplier"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Auto-Generated Links Section */}
+                                        {isExpanded && (
+                                            <div className="p-3.5 space-y-3 bg-white text-xs">
+                                                {/* Entry Links */}
+                                                <div>
+                                                    <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                        <span className="w-2 h-2 rounded-full bg-inexra-teal inline-block" />
+                                                        Supplier Entry Links (Provide to Partner)
+                                                    </div>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                                        {/* Live Survey Link */}
+                                                        <div className="space-y-1 bg-gray-50/70 p-2 rounded-lg border border-gray-100">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[11px] font-semibold text-gray-700 flex items-center gap-1">
+                                                                    <Badge className="bg-blue-100 text-blue-700 border-0 text-[9px] px-1.5 py-0">LIVE</Badge>
+                                                                    Survey Entry Link
+                                                                </span>
+                                                                <span className="text-[10px] text-gray-400 font-mono">replace [uid]</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Input
+                                                                    readOnly
+                                                                    value={liveSurveyUrl}
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all"
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className={cn(
+                                                                        "h-7 px-2.5 text-[10px] font-semibold flex-shrink-0 transition-colors",
+                                                                        copiedKey === `${sup._id}-live`
+                                                                            ? "bg-emerald-50 text-emerald-600 border-emerald-300"
+                                                                            : "hover:bg-gray-100 text-gray-700"
+                                                                    )}
+                                                                    onClick={() => copyToClipboard(liveSurveyUrl, `${sup._id}-live`, "Live Survey Link")}
+                                                                >
+                                                                    {copiedKey === `${sup._id}-live` ? (
+                                                                        <><Check className="w-3 h-3 mr-1 text-emerald-600" /> Copied</>
+                                                                    ) : (
+                                                                        <><Copy className="w-3 h-3 mr-1" /> Copy</>
+                                                                    )}
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-7 w-7 p-0 flex-shrink-0 text-gray-400 hover:text-blue-600"
+                                                                    onClick={() => window.open(liveSurveyUrl.replace("[uid]", "PREVIEW_USER"), "_blank")}
+                                                                    title="Open preview in new tab"
+                                                                >
+                                                                    <ExternalLink className="w-3 h-3" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Test Survey Link */}
+                                                        <div className="space-y-1 bg-gray-50/70 p-2 rounded-lg border border-gray-100">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[11px] font-semibold text-gray-700 flex items-center gap-1">
+                                                                    <Badge className="bg-purple-100 text-purple-700 border-0 text-[9px] px-1.5 py-0">TEST</Badge>
+                                                                    Test Entry Link
+                                                                </span>
+                                                                <span className="text-[10px] text-gray-400 font-mono">uid=TEST_USER</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Input
+                                                                    readOnly
+                                                                    value={testSurveyUrl}
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all"
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className={cn(
+                                                                        "h-7 px-2.5 text-[10px] font-semibold flex-shrink-0 transition-colors",
+                                                                        copiedKey === `${sup._id}-test`
+                                                                            ? "bg-emerald-50 text-emerald-600 border-emerald-300"
+                                                                            : "hover:bg-gray-100 text-gray-700"
+                                                                    )}
+                                                                    onClick={() => copyToClipboard(testSurveyUrl, `${sup._id}-test`, "Test Link")}
+                                                                >
+                                                                    {copiedKey === `${sup._id}-test` ? (
+                                                                        <><Check className="w-3 h-3 mr-1 text-emerald-600" /> Copied</>
+                                                                    ) : (
+                                                                        <><Copy className="w-3 h-3 mr-1" /> Copy</>
+                                                                    )}
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-7 w-7 p-0 flex-shrink-0 text-gray-400 hover:text-purple-600"
+                                                                    onClick={() => window.open(testSurveyUrl, "_blank")}
+                                                                    title="Open test link in new tab"
+                                                                >
+                                                                    <ExternalLink className="w-3 h-3" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* 4 Auto-Generated Redirect URLs */}
+                                                <div>
+                                                    <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                                                            Auto-Generated Redirect URLs (Give to Supplier)
+                                                        </span>
+                                                        <span className="text-[10px] font-normal text-gray-400">
+                                                            Redirects respondent back on survey outcome
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                                        {/* 1. Complete Redirect */}
+                                                        <div className="space-y-1 bg-emerald-50/40 p-2 rounded-lg border border-emerald-100">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1.5">
+                                                                    <Badge className="bg-emerald-500 text-white border-0 text-[9px] px-1.5 py-0">Complete</Badge>
+                                                                    Success Redirect
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Input
+                                                                    readOnly
+                                                                    value={completeUrl}
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-emerald-200"
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className={cn(
+                                                                        "h-7 px-2.5 text-[10px] font-semibold flex-shrink-0 transition-colors border-emerald-200",
+                                                                        copiedKey === `${sup._id}-comp`
+                                                                            ? "bg-emerald-600 text-white"
+                                                                            : "hover:bg-emerald-50 text-emerald-700"
+                                                                    )}
+                                                                    onClick={() => copyToClipboard(completeUrl, `${sup._id}-comp`, "Complete Redirect URL")}
+                                                                >
+                                                                    {copiedKey === `${sup._id}-comp` ? (
+                                                                        <><Check className="w-3 h-3 mr-1 text-white" /> Copied</>
+                                                                    ) : (
+                                                                        <><Copy className="w-3 h-3 mr-1" /> Copy</>
+                                                                    )}
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* 2. Disqualify / Terminate Redirect */}
+                                                        <div className="space-y-1 bg-red-50/40 p-2 rounded-lg border border-red-100">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[11px] font-bold text-red-800 flex items-center gap-1.5">
+                                                                    <Badge className="bg-red-500 text-white border-0 text-[9px] px-1.5 py-0">DQ</Badge>
+                                                                    Disqualify / Terminate
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Input
+                                                                    readOnly
+                                                                    value={terminateUrl}
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-red-200"
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className={cn(
+                                                                        "h-7 px-2.5 text-[10px] font-semibold flex-shrink-0 transition-colors border-red-200",
+                                                                        copiedKey === `${sup._id}-dq`
+                                                                            ? "bg-red-600 text-white"
+                                                                            : "hover:bg-red-50 text-red-700"
+                                                                    )}
+                                                                    onClick={() => copyToClipboard(terminateUrl, `${sup._id}-dq`, "Disqualify URL")}
+                                                                >
+                                                                    {copiedKey === `${sup._id}-dq` ? (
+                                                                        <><Check className="w-3 h-3 mr-1 text-white" /> Copied</>
+                                                                    ) : (
+                                                                        <><Copy className="w-3 h-3 mr-1" /> Copy</>
+                                                                    )}
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* 3. Quota Full Redirect */}
+                                                        <div className="space-y-1 bg-amber-50/40 p-2 rounded-lg border border-amber-100">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[11px] font-bold text-amber-800 flex items-center gap-1.5">
+                                                                    <Badge className="bg-amber-500 text-white border-0 text-[9px] px-1.5 py-0">Quota</Badge>
+                                                                    Quota Full Redirect
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Input
+                                                                    readOnly
+                                                                    value={quotaFullUrl}
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-amber-200"
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className={cn(
+                                                                        "h-7 px-2.5 text-[10px] font-semibold flex-shrink-0 transition-colors border-amber-200",
+                                                                        copiedKey === `${sup._id}-quota`
+                                                                            ? "bg-amber-600 text-white"
+                                                                            : "hover:bg-amber-50 text-amber-700"
+                                                                    )}
+                                                                    onClick={() => copyToClipboard(quotaFullUrl, `${sup._id}-quota`, "Quota Full URL")}
+                                                                >
+                                                                    {copiedKey === `${sup._id}-quota` ? (
+                                                                        <><Check className="w-3 h-3 mr-1 text-white" /> Copied</>
+                                                                    ) : (
+                                                                        <><Copy className="w-3 h-3 mr-1" /> Copy</>
+                                                                    )}
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* 4. Security Terminate Redirect */}
+                                                        <div className="space-y-1 bg-purple-50/40 p-2 rounded-lg border border-purple-100">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="text-[11px] font-bold text-purple-800 flex items-center gap-1.5">
+                                                                    <Badge className="bg-purple-500 text-white border-0 text-[9px] px-1.5 py-0">Security</Badge>
+                                                                    Security Terminate Redirect
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Input
+                                                                    readOnly
+                                                                    value={securityUrl}
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-purple-200"
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className={cn(
+                                                                        "h-7 px-2.5 text-[10px] font-semibold flex-shrink-0 transition-colors border-purple-200",
+                                                                        copiedKey === `${sup._id}-sec`
+                                                                            ? "bg-purple-600 text-white"
+                                                                            : "hover:bg-purple-50 text-purple-700"
+                                                                    )}
+                                                                    onClick={() => copyToClipboard(securityUrl, `${sup._id}-sec`, "Security URL")}
+                                                                >
+                                                                    {copiedKey === `${sup._id}-sec` ? (
+                                                                        <><Check className="w-3 h-3 mr-1 text-white" /> Copied</>
+                                                                    ) : (
+                                                                        <><Copy className="w-3 h-3 mr-1" /> Copy</>
+                                                                    )}
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Original Destination Link reference */}
+                                                <div className="pt-2 border-t border-gray-100 flex items-center gap-2 text-[11px] text-gray-500">
+                                                    <span className="font-semibold text-gray-600 flex-shrink-0">Destination:</span>
+                                                    <span className="truncate font-mono text-[10px] text-gray-600 bg-gray-50 px-2 py-0.5 rounded border">
+                                                        {sup.originalLink}
                                                     </span>
-                                                    <button onClick={() => copyToClipboard(trackingUrl)} className="hover:text-blue-600 transition-colors">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => copyToClipboard(sup.originalLink, `${sup._id}-orig`, "Destination URL")}
+                                                        className="hover:text-inexra-teal flex-shrink-0"
+                                                        title="Copy original link"
+                                                    >
                                                         <Copy className="w-3 h-3" />
                                                     </button>
-                                                    <button onClick={() => window.open(trackingUrl, "_blank")} className="hover:text-blue-600 transition-colors">
-                                                        <ExternalLink className="w-3 h-3" />
-                                                    </button>
                                                 </div>
-                                            </TableCell>
-                                            <TableCell className="text-xs font-bold text-gray-700">{sup.hits}</TableCell>
-                                            <TableCell className="text-xs font-bold text-green-600">{sup.completes}</TableCell>
-                                            <TableCell className="text-xs text-right">
-                                                <Button variant="ghost" size="sm" className="h-6 text-[10px] text-red-500 hover:text-red-700">
-                                                    Remove
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     )}
                 </ScrollArea>
             </div>
@@ -342,7 +870,7 @@ export function EditProjectDialog({ project, open, onClose, onSuccess }: EditPro
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent showCloseButton={false} className="sm:max-w-4xl h-[90vh] flex flex-col p-0 gap-0 bg-neutral-50/50">
+            <DialogContent showCloseButton={false} className="sm:max-w-5xl h-[90vh] flex flex-col p-0 gap-0 bg-neutral-50/50">
                 {/* Header */}
                 <DialogHeader className="px-6 py-4 bg-white border-b border-gray-100 flex-shrink-0">
                     <div className="flex items-center justify-between">
