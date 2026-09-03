@@ -183,6 +183,7 @@ function StatusTab({
 function SuppliersTab({ project }: { project: Project }) {
     const [suppliers, setSuppliers]                     = useState<Supplier[]>([]);
     const [loading, setLoading]                         = useState(false);
+    const [showAddSupplier, setShowAddSupplier]         = useState(false);
     const [newSupplierName, setNewSupplierName]         = useState("");
     const [newSupplierLink, setNewSupplierLink]         = useState("");
     const [newSupplierCpi, setNewSupplierCpi]           = useState("");
@@ -202,6 +203,9 @@ function SuppliersTab({ project }: { project: Project }) {
             const data = await res.json();
             if (data.success) {
                 setSuppliers(data.data);
+                if (data.data.length === 0) {
+                    setShowAddSupplier(true);
+                }
                 setExpandedSuppliers((prev) => {
                     const next = { ...prev };
                     data.data.forEach((s: Supplier) => {
@@ -250,6 +254,7 @@ function SuppliersTab({ project }: { project: Project }) {
                 setNewSupplierCpi("");
                 setNewSupplierReqComp("");
                 setNewSupplierMaxRedir("500000");
+                setShowAddSupplier(false);
                 fetchSuppliers();
             } else {
                 toast.error(data.error || "Failed to add supplier");
@@ -319,106 +324,134 @@ function SuppliersTab({ project }: { project: Project }) {
     };
 
     return (
-        <div className="flex flex-col gap-4 p-5 h-full overflow-hidden bg-neutral-50/50">
+        <div className="flex flex-col gap-4 p-4 sm:p-5 min-h-full">
             {/* ── Add New Supplier Card ────────────────────────────────────── */}
-            <form onSubmit={handleAddSupplier} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3 flex-shrink-0">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                    <span className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <Plus className="w-3.5 h-3.5 text-inexra-teal" /> Add New Supplier
-                    </span>
-                    <span className="text-[11px] text-gray-400">Configure partner targeting, caps & links</span>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden transition-all">
+                <div
+                    onClick={() => setShowAddSupplier(!showAddSupplier)}
+                    className="flex items-center justify-between p-3.5 bg-gray-50/70 cursor-pointer hover:bg-gray-100/70 select-none transition-colors"
+                >
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md bg-teal-50 text-inexra-teal flex items-center justify-center border border-teal-200">
+                            <Plus className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                            <span className="text-xs font-bold text-gray-800 uppercase tracking-wider block">
+                                Add New Supplier
+                            </span>
+                            <span className="text-[11px] text-gray-500">
+                                Configure partner targeting, caps & links
+                            </span>
+                        </div>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs text-gray-600 hover:text-gray-900"
+                    >
+                        {showAddSupplier ? (
+                            <>Collapse <ChevronUp className="w-3.5 h-3.5 ml-1" /></>
+                        ) : (
+                            <>Expand <ChevronDown className="w-3.5 h-3.5 ml-1" /></>
+                        )}
+                    </Button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                    {/* Supplier Name */}
-                    <div className="md:col-span-4 space-y-1">
-                        <Label className="text-[11px] font-semibold text-gray-600">Supplier Name *</Label>
-                        <Input
-                            value={newSupplierName}
-                            onChange={(e) => setNewSupplierName(e.target.value)}
-                            placeholder="e.g. Cint, Lucid, PureSpectrum"
-                            className="h-8 text-xs bg-gray-50/50 focus:bg-white"
-                        />
-                    </div>
+                {showAddSupplier && (
+                    <form onSubmit={handleAddSupplier} className="p-4 border-t border-gray-100 space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                            {/* Supplier Name */}
+                            <div className="md:col-span-4 space-y-1">
+                                <Label className="text-[11px] font-semibold text-gray-600">Supplier Name *</Label>
+                                <Input
+                                    value={newSupplierName}
+                                    onChange={(e) => setNewSupplierName(e.target.value)}
+                                    placeholder="e.g. Cint, Lucid, PureSpectrum"
+                                    className="h-8 text-xs bg-gray-50/50 focus:bg-white"
+                                />
+                            </div>
 
-                    {/* Original Survey Link */}
-                    <div className="md:col-span-8 space-y-1">
-                        <Label className="text-[11px] font-semibold text-gray-600">Original Survey Link *</Label>
-                        <Input
-                            value={newSupplierLink}
-                            onChange={(e) => setNewSupplierLink(e.target.value)}
-                            placeholder="https://client-survey.com/entry?pid=...&uid=[uid]"
-                            className="h-8 text-xs bg-gray-50/50 focus:bg-white font-mono text-[11px]"
-                        />
-                    </div>
+                            {/* Original Survey Link */}
+                            <div className="md:col-span-8 space-y-1">
+                                <Label className="text-[11px] font-semibold text-gray-600">Original Survey Link *</Label>
+                                <Input
+                                    value={newSupplierLink}
+                                    onChange={(e) => setNewSupplierLink(e.target.value)}
+                                    placeholder="https://client-survey.com/entry?pid=...&uid=[uid]"
+                                    className="h-8 text-xs bg-gray-50/50 focus:bg-white font-mono text-[11px]"
+                                />
+                            </div>
 
-                    {/* CPI */}
-                    <div className="md:col-span-3 space-y-1">
-                        <Label className="text-[11px] font-semibold text-gray-600">Supplier CPI ($)</Label>
-                        <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={newSupplierCpi}
-                            onChange={(e) => setNewSupplierCpi(e.target.value)}
-                            placeholder="0.00"
-                            className="h-8 text-xs bg-gray-50/50 focus:bg-white"
-                        />
-                    </div>
+                            {/* CPI */}
+                            <div className="md:col-span-3 space-y-1">
+                                <Label className="text-[11px] font-semibold text-gray-600">Supplier CPI ($)</Label>
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={newSupplierCpi}
+                                    onChange={(e) => setNewSupplierCpi(e.target.value)}
+                                    placeholder="0.00"
+                                    className="h-8 text-xs bg-gray-50/50 focus:bg-white"
+                                />
+                            </div>
 
-                    {/* Required Completes */}
-                    <div className="md:col-span-3 space-y-1">
-                        <Label className="text-[11px] font-semibold text-gray-600">Req Completes</Label>
-                        <Input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={newSupplierReqComp}
-                            onChange={(e) => setNewSupplierReqComp(e.target.value)}
-                            placeholder="0 (Unlimited)"
-                            className="h-8 text-xs bg-gray-50/50 focus:bg-white"
-                        />
-                    </div>
+                            {/* Required Completes */}
+                            <div className="md:col-span-3 space-y-1">
+                                <Label className="text-[11px] font-semibold text-gray-600">Req Completes</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={newSupplierReqComp}
+                                    onChange={(e) => setNewSupplierReqComp(e.target.value)}
+                                    placeholder="0 (Unlimited)"
+                                    className="h-8 text-xs bg-gray-50/50 focus:bg-white"
+                                />
+                            </div>
 
-                    {/* Max Redirects */}
-                    <div className="md:col-span-3 space-y-1">
-                        <Label className="text-[11px] font-semibold text-gray-600">Max Redirects (Cap)</Label>
-                        <Input
-                            type="number"
-                            min="0"
-                            step="100"
-                            value={newSupplierMaxRedir}
-                            onChange={(e) => setNewSupplierMaxRedir(e.target.value)}
-                            placeholder="500000"
-                            className="h-8 text-xs bg-gray-50/50 focus:bg-white"
-                        />
-                    </div>
+                            {/* Max Redirects */}
+                            <div className="md:col-span-3 space-y-1">
+                                <Label className="text-[11px] font-semibold text-gray-600">Max Redirects (Cap)</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="100"
+                                    value={newSupplierMaxRedir}
+                                    onChange={(e) => setNewSupplierMaxRedir(e.target.value)}
+                                    placeholder="500000"
+                                    className="h-8 text-xs bg-gray-50/50 focus:bg-white"
+                                />
+                            </div>
 
-                    {/* Submit Button */}
-                    <div className="md:col-span-3 flex items-end">
-                        <Button
-                            type="submit"
-                            disabled={addingSupplier}
-                            size="sm"
-                            className="w-full h-8 bg-inexra-teal hover:bg-teal-600 text-white text-xs font-semibold shadow-sm"
-                        >
-                            {addingSupplier ? (
-                                <>
-                                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Adding...
-                                </>
-                            ) : (
-                                <>
-                                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Supplier
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </div>
-            </form>
+                            {/* Submit Button */}
+                            <div className="md:col-span-3 flex items-end">
+                                <Button
+                                    type="submit"
+                                    disabled={addingSupplier}
+                                    size="sm"
+                                    className="w-full h-8 bg-inexra-teal hover:bg-teal-600 text-white text-xs font-semibold shadow-sm"
+                                >
+                                    {addingSupplier ? (
+                                        <>
+                                            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Adding...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Supplier
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    </form>
+                )}
+            </div>
 
             {/* ── Connected Suppliers List ─────────────────────────────────── */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden flex flex-col flex-1 min-h-0 bg-white shadow-sm">
-                <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+            <div className="border border-gray-200 rounded-xl overflow-hidden flex flex-col bg-white shadow-sm">
+                <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
                             Connected Suppliers ({suppliers.length})
@@ -435,7 +468,7 @@ function SuppliersTab({ project }: { project: Project }) {
                     </Button>
                 </div>
 
-                <ScrollArea className="flex-1 p-4">
+                <div className="p-4">
                     {loading && suppliers.length === 0 ? (
                         <div className="flex flex-col items-center justify-center p-12 text-gray-400 gap-2">
                             <Loader2 className="w-6 h-6 animate-spin text-inexra-teal" />
@@ -587,11 +620,11 @@ function SuppliersTab({ project }: { project: Project }) {
                                                                 </span>
                                                                 <span className="text-[10px] text-gray-400 font-mono">replace [uid]</span>
                                                             </div>
-                                                            <div className="flex items-center gap-1.5">
+                                                            <div className="flex items-center gap-1.5 min-w-0">
                                                                 <Input
                                                                     readOnly
                                                                     value={liveSurveyUrl}
-                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all"
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all min-w-0 flex-1"
                                                                 />
                                                                 <Button
                                                                     type="button"
@@ -633,11 +666,11 @@ function SuppliersTab({ project }: { project: Project }) {
                                                                 </span>
                                                                 <span className="text-[10px] text-gray-400 font-mono">uid=TEST_USER</span>
                                                             </div>
-                                                            <div className="flex items-center gap-1.5">
+                                                            <div className="flex items-center gap-1.5 min-w-0">
                                                                 <Input
                                                                     readOnly
                                                                     value={testSurveyUrl}
-                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all"
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all min-w-0 flex-1"
                                                                 />
                                                                 <Button
                                                                     type="button"
@@ -693,11 +726,11 @@ function SuppliersTab({ project }: { project: Project }) {
                                                                     Success Redirect
                                                                 </span>
                                                             </div>
-                                                            <div className="flex items-center gap-1.5">
+                                                            <div className="flex items-center gap-1.5 min-w-0">
                                                                 <Input
                                                                     readOnly
                                                                     value={completeUrl}
-                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-emerald-200"
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-emerald-200 min-w-0 flex-1"
                                                                 />
                                                                 <Button
                                                                     type="button"
@@ -728,11 +761,11 @@ function SuppliersTab({ project }: { project: Project }) {
                                                                     Disqualify / Terminate
                                                                 </span>
                                                             </div>
-                                                            <div className="flex items-center gap-1.5">
+                                                            <div className="flex items-center gap-1.5 min-w-0">
                                                                 <Input
                                                                     readOnly
                                                                     value={terminateUrl}
-                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-red-200"
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-red-200 min-w-0 flex-1"
                                                                 />
                                                                 <Button
                                                                     type="button"
@@ -763,11 +796,11 @@ function SuppliersTab({ project }: { project: Project }) {
                                                                     Quota Full Redirect
                                                                 </span>
                                                             </div>
-                                                            <div className="flex items-center gap-1.5">
+                                                            <div className="flex items-center gap-1.5 min-w-0">
                                                                 <Input
                                                                     readOnly
                                                                     value={quotaFullUrl}
-                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-amber-200"
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-amber-200 min-w-0 flex-1"
                                                                 />
                                                                 <Button
                                                                     type="button"
@@ -798,11 +831,11 @@ function SuppliersTab({ project }: { project: Project }) {
                                                                     Security Terminate Redirect
                                                                 </span>
                                                             </div>
-                                                            <div className="flex items-center gap-1.5">
+                                                            <div className="flex items-center gap-1.5 min-w-0">
                                                                 <Input
                                                                     readOnly
                                                                     value={securityUrl}
-                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-purple-200"
+                                                                    className="h-7 text-[11px] font-mono bg-white text-gray-700 select-all border-purple-200 min-w-0 flex-1"
                                                                 />
                                                                 <Button
                                                                     type="button"
@@ -849,7 +882,7 @@ function SuppliersTab({ project }: { project: Project }) {
                             })}
                         </div>
                     )}
-                </ScrollArea>
+                </div>
             </div>
         </div>
     );
@@ -870,7 +903,7 @@ export function EditProjectDialog({ project, open, onClose, onSuccess }: EditPro
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent showCloseButton={false} className="sm:max-w-5xl h-[90vh] flex flex-col p-0 gap-0 bg-neutral-50/50">
+            <DialogContent showCloseButton={false} className="w-[96vw] sm:max-w-5xl h-[92vh] max-h-[92vh] flex flex-col p-0 gap-0 bg-neutral-50/50 overflow-hidden">
                 {/* Header */}
                 <DialogHeader className="px-6 py-4 bg-white border-b border-gray-100 flex-shrink-0">
                     <div className="flex items-center justify-between">
@@ -925,7 +958,7 @@ export function EditProjectDialog({ project, open, onClose, onSuccess }: EditPro
                     </TabsContent>
 
                     {/* Suppliers */}
-                    <TabsContent value="suppliers" className="flex-1 flex flex-col overflow-hidden m-0 bg-white">
+                    <TabsContent value="suppliers" className="flex-1 overflow-y-auto m-0 bg-neutral-50/50">
                         <SuppliersTab project={project} />
                     </TabsContent>
                 </Tabs>
