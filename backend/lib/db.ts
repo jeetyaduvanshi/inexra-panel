@@ -1,4 +1,12 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// Ensure MongoDB Atlas SRV DNS lookup succeeds on Windows/local networks
+try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+    console.warn("Could not configure DNS servers:", e);
+}
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
