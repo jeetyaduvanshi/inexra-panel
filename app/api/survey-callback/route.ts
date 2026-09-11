@@ -51,6 +51,7 @@ interface ProcessCallbackParams {
     pid?: string;
     shouldRedirect?: boolean;
     baseUrl?: string;
+    clientIp?: string;
 }
 
 function resultPageRedirect(
@@ -59,6 +60,7 @@ function resultPageRedirect(
     uid: string,
     sessionId: string,
     projectId?: { toString(): string } | null,
+    ip?: string,
 ): NextResponse {
     const url = new URL('/client-redirect-url', baseUrl || 'http://localhost:3000');
     url.searchParams.set('recorded', '1');
@@ -66,11 +68,12 @@ function resultPageRedirect(
     url.searchParams.set('uid', uid);
     url.searchParams.set('sessionId', sessionId);
     if (projectId) url.searchParams.set('pid', projectId.toString());
+    if (ip) url.searchParams.set('ip', ip);
     return NextResponse.redirect(url, 302);
 }
 
 async function processSurveyCallback(params: ProcessCallbackParams): Promise<NextResponse> {
-    const { rawStatus, uid, sessionId, pid, shouldRedirect, baseUrl = '' } = params;
+    const { rawStatus, uid, sessionId, pid, shouldRedirect, baseUrl = '', clientIp = '' } = params;
 
     // 1. Validate required fields
     if (!rawStatus || (!uid && !sessionId)) {
@@ -268,8 +271,9 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
         );
 
         // 9. Handle Browser Redirect if requested
+        const resolvedIp = (session?.ip && session.ip !== 'unknown' ? session.ip : clientIp) || '';
         if (shouldRedirect) {
-            return resultPageRedirect(baseUrl, rawStatus, session.respondentUid, session.sessionId, session.projectId);
+            return resultPageRedirect(baseUrl, rawStatus, session.respondentUid, session.sessionId, session.projectId, resolvedIp);
         }
 
         // 10. Return JSON Response
@@ -283,6 +287,7 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
                 projectId: session.projectId,
                 supplierId: session.supplierId,
                 status: session.status,
+                ip: resolvedIp,
                 payout: session.payout,
                 entryTimestamp: session.entryTimestamp,
                 exitTimestamp: session.exitTimestamp,
@@ -303,6 +308,9 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
 
 export async function GET(req: Request) {
     const { searchParams, origin } = new URL(req.url);
+    const forwarded = req.headers.get('x-forwarded-for');
+    const realIp = req.headers.get('x-real-ip');
+    const clientIp = (forwarded ? forwarded.split(',')[0].trim() : realIp) || '';
 
     const rawStatus = (searchParams.get('status') || '').trim();
     const uid = (searchParams.get('uid') || searchParams.get('respondentUid') || searchParams.get('rid') || searchParams.get('id') || '').trim();
@@ -317,6 +325,7 @@ export async function GET(req: Request) {
         pid,
         shouldRedirect,
         baseUrl: origin,
+        clientIp,
     });
 }
 
@@ -324,6 +333,9 @@ export async function POST(req: Request) {
     try {
         const body = await req.json().catch(() => ({}));
         const { searchParams, origin } = new URL(req.url);
+        const forwarded = req.headers.get('x-forwarded-for');
+        const realIp = req.headers.get('x-real-ip');
+        const clientIp = (forwarded ? forwarded.split(',')[0].trim() : realIp) || '';
 
         const rawStatus = (body.status || searchParams.get('status') || '').trim();
         const uid = (body.uid || body.respondentUid || body.rid || body.id || searchParams.get('uid') || searchParams.get('respondentUid') || '').trim();
@@ -338,6 +350,7 @@ export async function POST(req: Request) {
             pid,
             shouldRedirect,
             baseUrl: origin,
+            clientIp,
         });
     } catch (error) {
         console.error('POST /api/survey-callback error:', error);
