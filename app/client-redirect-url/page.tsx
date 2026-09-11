@@ -123,7 +123,7 @@ function RedirectContent() {
             padding: '24px 16px',
             fontFamily: "'Times New Roman', Times, Georgia, serif",
         }}>
-            {/* Yellow bottom-left abstract decorative circle matching Six Sense Research design */}
+            {/* Yellow bottom-left abstract decorative circle */}
             <div style={{
                 position: 'absolute',
                 bottom: '-120px',
@@ -135,148 +135,220 @@ function RedirectContent() {
                 pointerEvents: 'none',
             }} />
 
-            {/* White Card Container */}
+            {/* Split Card Container */}
             <div style={{
                 position: 'relative',
                 zIndex: 10,
                 backgroundColor: '#ffffff',
                 width: '100%',
-                maxWidth: '520px',
-                padding: '44px 36px 40px',
-                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.25)',
+                maxWidth: '850px',
+                borderRadius: '18px',
+                boxShadow: '0 25px 60px rgba(0, 0, 0, 0.3)',
+                overflow: 'hidden',
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                minHeight: '440px',
             }}>
-                {/* Title */}
-                <h1 style={{
-                    fontSize: '25px',
-                    fontWeight: 800,
-                    color: '#1a1a2e',
-                    letterSpacing: '1.2px',
-                    textTransform: 'uppercase',
+                {/* Left Side: Company Branding (From previous version) */}
+                <div style={{
+                    background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '40px 32px',
+                    minWidth: '280px',
+                    flex: '1 1 280px',
                     textAlign: 'center',
-                    margin: '0 0 30px 0',
-                    fontFamily: "'Times New Roman', Times, Georgia, serif",
+                    gap: '16px',
+                    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
                 }}>
-                    {config.title}
-                </h1>
+                    <div style={{
+                        backgroundColor: '#ffffff',
+                        padding: '12px',
+                        borderRadius: '16px',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '130px',
+                        height: '130px',
+                    }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src="/inexra-logo.jpg"
+                            alt="Inexra Research and Analytics"
+                            style={{
+                                maxHeight: '100%',
+                                maxWidth: '100%',
+                                objectFit: 'contain',
+                            }}
+                        />
+                    </div>
+                    <div>
+                        <h2 style={{
+                            color: '#ffffff',
+                            fontSize: '22px',
+                            fontWeight: 800,
+                            letterSpacing: '1.2px',
+                            margin: '0 0 6px 0',
+                            textTransform: 'uppercase',
+                        }}>
+                            INEXRA RESEARCH
+                        </h2>
+                        <p style={{
+                            color: '#94a3b8',
+                            fontSize: '13px',
+                            margin: 0,
+                            fontStyle: 'italic',
+                            letterSpacing: '0.5px',
+                        }}>
+                            !!Research Made Simple!!
+                        </p>
+                    </div>
+                </div>
 
-                {/* Golden Yellow Border Table Grid */}
-                <table style={{
-                    width: '100%',
-                    borderCollapse: 'collapse',
-                    border: '2px solid #eab308',
-                    tableLayout: 'fixed',
+                {/* Right Side: Golden Outcome Table */}
+                <div style={{
+                    flex: '2 1 420px',
+                    padding: '40px 32px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#ffffff',
                 }}>
-                    <tbody>
-                        {/* Row 1: Message */}
-                        <tr style={{ borderBottom: '1.5px solid #eab308' }}>
-                            <td style={{
-                                padding: '14px 16px',
-                                fontWeight: 700,
-                                color: '#1f2937',
-                                fontSize: '15px',
-                                textAlign: 'center',
-                                borderRight: '1.5px solid #eab308',
-                                width: '45%',
-                                fontFamily: "'Times New Roman', Times, Georgia, serif",
-                            }}>
-                                Message
-                            </td>
-                            <td style={{
-                                padding: '14px 16px',
-                                fontWeight: 700,
-                                color: '#1f2937',
-                                fontSize: '15px',
-                                textAlign: 'center',
-                                width: '55%',
-                                wordBreak: 'break-word',
-                                fontFamily: "'Times New Roman', Times, Georgia, serif",
-                            }}>
-                                {config.message}
-                            </td>
-                        </tr>
+                    {/* Title */}
+                    <h1 style={{
+                        fontSize: '24px',
+                        fontWeight: 800,
+                        color: '#1a1a2e',
+                        letterSpacing: '1.2px',
+                        textTransform: 'uppercase',
+                        textAlign: 'center',
+                        margin: '0 0 28px 0',
+                        fontFamily: "'Times New Roman', Times, Georgia, serif",
+                    }}>
+                        {config.title}
+                    </h1>
 
-                        {/* Row 2: Project ID */}
-                        <tr style={{ borderBottom: '1.5px solid #eab308' }}>
-                            <td style={{
-                                padding: '14px 16px',
-                                fontWeight: 700,
-                                color: '#1f2937',
-                                fontSize: '15px',
-                                textAlign: 'center',
-                                borderRight: '1.5px solid #eab308',
-                                fontFamily: "'Times New Roman', Times, Georgia, serif",
-                            }}>
-                                Project ID
-                            </td>
-                            <td style={{
-                                padding: '14px 16px',
-                                fontWeight: 700,
-                                color: '#1f2937',
-                                fontSize: '15px',
-                                textAlign: 'center',
-                                wordBreak: 'break-all',
-                                fontFamily: "'Times New Roman', Times, Georgia, serif",
-                            }}>
-                                {sid || 'VM'}
-                            </td>
-                        </tr>
+                    {/* Golden Yellow Border Table Grid */}
+                    <table style={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        border: '2px solid #eab308',
+                        tableLayout: 'fixed',
+                    }}>
+                        <tbody>
+                            {/* Row 1: Message */}
+                            <tr style={{ borderBottom: '1.5px solid #eab308' }}>
+                                <td style={{
+                                    padding: '13px 14px',
+                                    fontWeight: 700,
+                                    color: '#1f2937',
+                                    fontSize: '14px',
+                                    textAlign: 'center',
+                                    borderRight: '1.5px solid #eab308',
+                                    width: '45%',
+                                    fontFamily: "'Times New Roman', Times, Georgia, serif",
+                                }}>
+                                    Message
+                                </td>
+                                <td style={{
+                                    padding: '13px 14px',
+                                    fontWeight: 700,
+                                    color: '#1f2937',
+                                    fontSize: '14px',
+                                    textAlign: 'center',
+                                    width: '55%',
+                                    wordBreak: 'break-word',
+                                    fontFamily: "'Times New Roman', Times, Georgia, serif",
+                                }}>
+                                    {config.message}
+                                </td>
+                            </tr>
 
-                        {/* Row 3: UID */}
-                        <tr style={{ borderBottom: '1.5px solid #eab308' }}>
-                            <td style={{
-                                padding: '14px 16px',
-                                fontWeight: 700,
-                                color: '#1f2937',
-                                fontSize: '15px',
-                                textAlign: 'center',
-                                borderRight: '1.5px solid #eab308',
-                                fontFamily: "'Times New Roman', Times, Georgia, serif",
-                            }}>
-                                UID
-                            </td>
-                            <td style={{
-                                padding: '14px 16px',
-                                fontWeight: 700,
-                                color: '#1f2937',
-                                fontSize: '15px',
-                                textAlign: 'center',
-                                wordBreak: 'break-all',
-                                fontFamily: "'Times New Roman', Times, Georgia, serif",
-                            }}>
-                                {uid || 'fthhhAM'}
-                            </td>
-                        </tr>
+                            {/* Row 2: Project ID */}
+                            <tr style={{ borderBottom: '1.5px solid #eab308' }}>
+                                <td style={{
+                                    padding: '13px 14px',
+                                    fontWeight: 700,
+                                    color: '#1f2937',
+                                    fontSize: '14px',
+                                    textAlign: 'center',
+                                    borderRight: '1.5px solid #eab308',
+                                    fontFamily: "'Times New Roman', Times, Georgia, serif",
+                                }}>
+                                    Project ID
+                                </td>
+                                <td style={{
+                                    padding: '13px 14px',
+                                    fontWeight: 700,
+                                    color: '#1f2937',
+                                    fontSize: '14px',
+                                    textAlign: 'center',
+                                    wordBreak: 'break-all',
+                                    fontFamily: "'Times New Roman', Times, Georgia, serif",
+                                }}>
+                                    {sid || 'VM'}
+                                </td>
+                            </tr>
 
-                        {/* Row 4: IP Address */}
-                        <tr>
-                            <td style={{
-                                padding: '14px 16px',
-                                fontWeight: 700,
-                                color: '#1f2937',
-                                fontSize: '15px',
-                                textAlign: 'center',
-                                borderRight: '1.5px solid #eab308',
-                                fontFamily: "'Times New Roman', Times, Georgia, serif",
-                            }}>
-                                IP Address
-                            </td>
-                            <td style={{
-                                padding: '14px 16px',
-                                fontWeight: 700,
-                                color: '#1f2937',
-                                fontSize: '15px',
-                                textAlign: 'center',
-                                wordBreak: 'break-all',
-                                fontFamily: "'Times New Roman', Times, Georgia, serif",
-                            }}>
-                                {ipAddress || '181.117.184.3'}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            {/* Row 3: UID */}
+                            <tr style={{ borderBottom: '1.5px solid #eab308' }}>
+                                <td style={{
+                                    padding: '13px 14px',
+                                    fontWeight: 700,
+                                    color: '#1f2937',
+                                    fontSize: '14px',
+                                    textAlign: 'center',
+                                    borderRight: '1.5px solid #eab308',
+                                    fontFamily: "'Times New Roman', Times, Georgia, serif",
+                                }}>
+                                    UID
+                                </td>
+                                <td style={{
+                                    padding: '13px 14px',
+                                    fontWeight: 700,
+                                    color: '#1f2937',
+                                    fontSize: '14px',
+                                    textAlign: 'center',
+                                    wordBreak: 'break-all',
+                                    fontFamily: "'Times New Roman', Times, Georgia, serif",
+                                }}>
+                                    {uid || 'fthhhAM'}
+                                </td>
+                            </tr>
+
+                            {/* Row 4: IP Address */}
+                            <tr>
+                                <td style={{
+                                    padding: '13px 14px',
+                                    fontWeight: 700,
+                                    color: '#1f2937',
+                                    fontSize: '14px',
+                                    textAlign: 'center',
+                                    borderRight: '1.5px solid #eab308',
+                                    fontFamily: "'Times New Roman', Times, Georgia, serif",
+                                }}>
+                                    IP Address
+                                </td>
+                                <td style={{
+                                    padding: '13px 14px',
+                                    fontWeight: 700,
+                                    color: '#1f2937',
+                                    fontSize: '14px',
+                                    textAlign: 'center',
+                                    wordBreak: 'break-all',
+                                    fontFamily: "'Times New Roman', Times, Georgia, serif",
+                                }}>
+                                    {ipAddress || '181.117.184.3'}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );
