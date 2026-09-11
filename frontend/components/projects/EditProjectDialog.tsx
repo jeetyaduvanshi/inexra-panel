@@ -487,10 +487,11 @@ function SuppliersTab({ project }: { project: Project }) {
                                 // Auto-generated links
                                 const liveSurveyUrl = sup.surveyLink || `${baseUrl}/api/s/${sup.trackingSlug}?uid=[uid]`;
                                 const testSurveyUrl = sup.testLink || `${baseUrl}/api/s/${sup.trackingSlug}?uid=TEST_USER`;
-                                const completeUrl   = sup.completionUrl || `${baseUrl}/client-redirect-url?uid=[uid]&status=complete`;
-                                const terminateUrl  = sup.terminateUrl || `${baseUrl}/client-redirect-url?uid=[uid]&status=terminate`;
-                                const quotaFullUrl  = sup.quotaFullUrl || `${baseUrl}/client-redirect-url?uid=[uid]&status=quota_full`;
-                                const securityUrl   = sup.securityUrl || `${baseUrl}/client-redirect-url?uid=[uid]&status=security_terminate`;
+                                const callbackUrl = (status: string) => `${baseUrl}/api/survey-callback?uid=[uid]&pid=${encodeURIComponent(project.id)}&status=${status}&redirect=true`;
+                                const completeUrl   = sup.completionUrl || callbackUrl('complete');
+                                const terminateUrl  = sup.terminateUrl || callbackUrl('terminate');
+                                const quotaFullUrl  = sup.quotaFullUrl || callbackUrl('quota_full');
+                                const securityUrl   = sup.securityUrl || callbackUrl('security_terminate');
 
                                 const isPaused = sup.status === "paused";
 

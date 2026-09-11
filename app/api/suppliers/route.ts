@@ -18,6 +18,24 @@ function getBaseUrl(req: Request): string {
     return process.env.NEXT_PUBLIC_BASE_URL || 'https://www.inexraresearch.com';
 }
 
+function buildCallbackUrl(baseUrl: string, projectId: string, status: string): string {
+    return `${baseUrl}/api/survey-callback?uid=[uid]&pid=${encodeURIComponent(projectId)}&status=${status}&redirect=true`;
+}
+
+// Only replace panel-generated legacy URLs. Custom client URLs are left intact.
+function isLegacyGeneratedRedirect(url: string | undefined): boolean {
+    if (!url) return false;
+
+    try {
+        const parsed = new URL(url);
+        return parsed.pathname === '/client-redirect-url'
+            && parsed.searchParams.get('uid') === '[uid]'
+            && Boolean(parsed.searchParams.get('status'));
+    } catch {
+        return false;
+    }
+}
+
 export async function POST(req: Request) {
     try {
         await dbConnect();
@@ -43,10 +61,14 @@ export async function POST(req: Request) {
         // Auto-generate URLs
         const surveyLink = `${baseUrl}/api/s/${trackingSlug}?uid=[uid]`;
         const testLink = `${baseUrl}/api/s/${trackingSlug}?uid=TEST_USER`;
-        const completionUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=complete`;
-        const terminateUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=terminate`;
-        const quotaFullUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=quota_full`;
-        const securityUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=security_terminate`;
+        // These are callback endpoints for the client to hit after a respondent exits
+        // the survey. Persistence happens on the server before the respondent is sent
+        // to the result page, so a browser-side React effect is not required.
+        const callbackUrl = (status: string) => buildCallbackUrl(baseUrl, projectId, status);
+        const completionUrl = callbackUrl('complete');
+        const terminateUrl = callbackUrl('terminate');
+        const quotaFullUrl = callbackUrl('quota_full');
+        const securityUrl = callbackUrl('security_terminate');
 
         const supplier = await Supplier.create({
             projectId,
@@ -107,6 +129,8 @@ export async function GET(req: Request) {
         const data = await Promise.all(
             suppliers.map(async (s) => {
                 const doc = s.toObject();
+                const projectIdString = doc.projectId.toString();
+                const callbackUrl = (status: string) => buildCallbackUrl(baseUrl, projectIdString, status);
                 let needsUpdate = false;
                 const updateFields: Record<string, string> = {};
 
@@ -120,23 +144,23 @@ export async function GET(req: Request) {
                     updateFields.testLink = doc.testLink;
                     needsUpdate = true;
                 }
-                if (!doc.completionUrl) {
-                    doc.completionUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=complete`;
+                if (!doc.completionUrl || isLegacyGeneratedRedirect(doc.completionUrl)) {
+                    doc.completionUrl = callbackUrl('complete');
                     updateFields.completionUrl = doc.completionUrl;
                     needsUpdate = true;
                 }
-                if (!doc.terminateUrl) {
-                    doc.terminateUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=terminate`;
+                if (!doc.terminateUrl || isLegacyGeneratedRedirect(doc.terminateUrl)) {
+                    doc.terminateUrl = callbackUrl('terminate');
                     updateFields.terminateUrl = doc.terminateUrl;
                     needsUpdate = true;
                 }
-                if (!doc.quotaFullUrl) {
-                    doc.quotaFullUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=quota_full`;
+                if (!doc.quotaFullUrl || isLegacyGeneratedRedirect(doc.quotaFullUrl)) {
+                    doc.quotaFullUrl = callbackUrl('quota_full');
                     updateFields.quotaFullUrl = doc.quotaFullUrl;
                     needsUpdate = true;
                 }
-                if (!doc.securityUrl) {
-                    doc.securityUrl = `${baseUrl}/client-redirect-url?uid=[uid]&status=security_terminate`;
+                if (!doc.securityUrl || isLegacyGeneratedRedirect(doc.securityUrl)) {
+                    doc.securityUrl = callbackUrl('security_terminate');
                     updateFields.securityUrl = doc.securityUrl;
                     needsUpdate = true;
                 }

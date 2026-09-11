@@ -64,6 +64,7 @@ function RedirectContent() {
     const uid = (searchParams.get('uid') || searchParams.get('respondentUid') || '').trim();
     const sid = (searchParams.get('sid') || searchParams.get('pid') || searchParams.get('projectId') || '').trim();
     const sessionId = (searchParams.get('sessionId') || searchParams.get('txid') || '').trim();
+    const recorded = searchParams.get('recorded') === '1';
 
     const normalizedKey = statusParam.toLowerCase();
     const config = STATUS_CONFIG[normalizedKey] || {
@@ -77,8 +78,6 @@ function RedirectContent() {
     const [isProcessing, setIsProcessing] = useState(true);
     const [isVerified, setIsVerified] = useState(false);
     const [isDuplicate, setIsDuplicate] = useState(false);
-    const [returnUrl, setReturnUrl] = useState<string | null>(null);
-    const [countdown, setCountdown] = useState<number | null>(null);
     const [verificationMessage, setVerificationMessage] = useState<string>('Recording survey completion...');
 
     const hasExecutedRef = useRef(false);
@@ -87,6 +86,13 @@ function RedirectContent() {
     useEffect(() => {
         if (hasExecutedRef.current) return;
         hasExecutedRef.current = true;
+
+        if (recorded) {
+            setIsProcessing(false);
+            setIsVerified(true);
+            setVerificationMessage('Survey outcome successfully recorded.');
+            return;
+        }
 
         if (!statusParam || (!uid && !sessionId)) {
             setIsProcessing(false);
@@ -115,10 +121,6 @@ function RedirectContent() {
                             : 'Survey outcome successfully verified and recorded.'
                     );
 
-                    if (data.supplierReturnUrl) {
-                        setReturnUrl(data.supplierReturnUrl);
-                        setCountdown(5);
-                    }
                 } else if (data.notFound) {
                     // 2. Fallback to legacy Zamplia callback if session not found
                     console.log('[CALLBACK-PAGE] Session not found in primary store, attempting Zamplia legacy fallback...');
@@ -146,25 +148,7 @@ function RedirectContent() {
         };
 
         runCallback();
-    }, [statusParam, uid, sid, sessionId]);
-
-    // Handle return URL countdown
-    useEffect(() => {
-        if (countdown === null) return;
-
-        if (countdown <= 0) {
-            if (returnUrl) {
-                window.location.href = returnUrl;
-            }
-            return;
-        }
-
-        const timer = setTimeout(() => {
-            setCountdown((prev) => (prev !== null && prev > 0 ? prev - 1 : 0));
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, [countdown, returnUrl]);
+    }, [recorded, statusParam, uid, sid, sessionId]);
 
     return (
         <div style={{
@@ -269,7 +253,7 @@ function RedirectContent() {
                         border: `2px solid ${config.color}40`,
                         borderRadius: '8px',
                         overflow: 'hidden',
-                        marginBottom: returnUrl ? '16px' : '0',
+                        marginBottom: '0',
                     }}>
                         <tbody>
                             <tr style={{ borderBottom: `1px solid ${config.color}30` }}>
@@ -341,36 +325,6 @@ function RedirectContent() {
                         </tbody>
                     </table>
 
-                    {/* Automatic Redirect Banner if supplier return URL is active */}
-                    {returnUrl && (
-                        <div style={{
-                            marginTop: '16px',
-                            padding: '14px',
-                            background: '#f8fafc',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '8px',
-                            textAlign: 'center',
-                        }}>
-                            <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#475569' }}>
-                                Redirecting back to panel provider in <strong>{countdown}</strong> seconds...
-                            </p>
-                            <a
-                                href={returnUrl}
-                                style={{
-                                    display: 'inline-block',
-                                    background: '#1a1a2e',
-                                    color: '#ffffff',
-                                    padding: '8px 18px',
-                                    borderRadius: '6px',
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    textDecoration: 'none',
-                                }}
-                            >
-                                Return Now →
-                            </a>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

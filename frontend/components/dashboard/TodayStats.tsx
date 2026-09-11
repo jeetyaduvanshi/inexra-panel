@@ -4,14 +4,30 @@ import React, { useEffect, useState } from "react";
 import { MetricCard } from "./MetricCard";
 
 export function TodayStats() {
-    // For now, these are zeroed out as requested earlier, until real data is hooked up for "Today".
-    const [todayStats] = useState([
-        { label: "Completed", value: 0 },
-        { label: "Disqualified", value: 0 },
-        { label: "Quota Full", value: 0 },
-        { label: "Security Fail", value: 0, textColor: "text-red-500" },
-        { label: "Drop", value: 0 },
-    ]);
+    const [counts, setCounts] = useState({
+        complete: 0,
+        disqualified: 0,
+        quota_full: 0,
+        security: 0,
+        drop: 0,
+    });
+
+    useEffect(() => {
+        fetch('/api/dashboard/stats')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) setCounts(data.today);
+            })
+            .catch((error) => console.error('Failed to fetch today statistics:', error));
+    }, []);
+
+    const todayStats = [
+        { label: "Completed", value: counts.complete },
+        { label: "Disqualified", value: counts.disqualified },
+        { label: "Quota Full", value: counts.quota_full },
+        { label: "Security Fail", value: counts.security, textColor: "text-red-500" },
+        { label: "Drop", value: counts.drop },
+    ];
 
     return (
         <section className="space-y-4">

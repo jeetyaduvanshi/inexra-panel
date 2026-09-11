@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/frontend/components/ui/card";
 import { Separator } from "@/frontend/components/ui/separator";
 
@@ -13,12 +13,31 @@ interface StatItem {
 }
 
 export function MonthlyStatistics() {
-    // Dummy data matching reference roughly
+    const [month, setMonth] = useState({
+        complete: 0,
+        disqualified: 0,
+        quota_full: 0,
+        security: 0,
+        drop: 0,
+        total: 0,
+    });
+
+    useEffect(() => {
+        fetch('/api/dashboard/stats')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) setMonth(data.month);
+            })
+            .catch((error) => console.error('Failed to fetch monthly statistics:', error));
+    }, []);
+
+    const percentage = (value: number) =>
+        month.total ? ((value / month.total) * 100).toFixed(2) : '0.00';
     const stats: StatItem[] = [
-        { label: "Completed", percentage: "0.00", value: 0, total: 0, color: "text-blue-600" },
-        { label: "Disqualified", percentage: "0.00", value: 0, total: 0, color: "text-cyan-500" },
-        { label: "Quotafull", percentage: "0.00", value: 0, total: 0, color: "text-yellow-500" },
-        { label: "Security Term", percentage: "0.00", value: 0, total: 0, color: "text-red-500" },
+        { label: "Completed", percentage: percentage(month.complete), value: month.complete, total: month.total, color: "text-blue-600" },
+        { label: "Disqualified", percentage: percentage(month.disqualified), value: month.disqualified, total: month.total, color: "text-cyan-500" },
+        { label: "Quotafull", percentage: percentage(month.quota_full), value: month.quota_full, total: month.total, color: "text-yellow-500" },
+        { label: "Security Term", percentage: percentage(month.security), value: month.security, total: month.total, color: "text-red-500" },
     ];
 
     return (

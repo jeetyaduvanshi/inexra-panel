@@ -42,55 +42,6 @@ const STATUS_MAP: Record<string, NormalizedStatus> = {
     'left': 'drop',
 };
 
-// ─── URL Interpolation for Supplier Return Links ────────────────────────────
-
-function interpolateReturnUrl(
-    templateUrl: string,
-    params: {
-        uid: string;
-        sessionId?: string;
-        pid?: string;
-        sid?: string;
-        status?: string;
-    }
-): string {
-    let url = templateUrl.trim();
-    const { uid, sessionId, pid, sid, status } = params;
-
-    const hasUidPlaceholder = /\[(uid|rid|respondent_?id|id)\]/i.test(url);
-    const hasSessionPlaceholder = /\[(session_?id|txid|tid)\]/i.test(url);
-    const hasStatusPlaceholder = /\[status\]/i.test(url);
-
-    url = url.replace(/\[(uid|rid|respondent_?id|id)\]/gi, encodeURIComponent(uid));
-    if (sessionId) {
-        url = url.replace(/\[(session_?id|txid|tid)\]/gi, encodeURIComponent(sessionId));
-    }
-    if (pid) {
-        url = url.replace(/\[(pid|project_?id)\]/gi, encodeURIComponent(pid));
-    }
-    if (sid) {
-        url = url.replace(/\[(sid|supplier_?id)\]/gi, encodeURIComponent(sid));
-    }
-    if (status) {
-        url = url.replace(/\[status\]/gi, encodeURIComponent(status));
-    }
-
-    if (!hasUidPlaceholder) {
-        const separator = url.includes('?') ? '&' : '?';
-        url = `${url}${separator}uid=${encodeURIComponent(uid)}`;
-    }
-    if (sessionId && !hasSessionPlaceholder) {
-        const separator = url.includes('?') ? '&' : '?';
-        url = `${url}${separator}sessionId=${encodeURIComponent(sessionId)}`;
-    }
-    if (status && !hasStatusPlaceholder && !url.includes('status=')) {
-        const separator = url.includes('?') ? '&' : '?';
-        url = `${url}${separator}status=${encodeURIComponent(status)}`;
-    }
-
-    return url;
-}
-
 // ─── Callback Processor ─────────────────────────────────────────────────────
 
 interface ProcessCallbackParams {
@@ -98,13 +49,28 @@ interface ProcessCallbackParams {
     uid: string;
     sessionId?: string;
     pid?: string;
-    sid?: string;
     shouldRedirect?: boolean;
     baseUrl?: string;
 }
 
+function resultPageRedirect(
+    baseUrl: string,
+    rawStatus: string,
+    uid: string,
+    sessionId: string,
+    projectId?: { toString(): string } | null,
+): NextResponse {
+    const url = new URL('/client-redirect-url', baseUrl || 'http://localhost:3000');
+    url.searchParams.set('recorded', '1');
+    url.searchParams.set('status', rawStatus);
+    url.searchParams.set('uid', uid);
+    url.searchParams.set('sessionId', sessionId);
+    if (projectId) url.searchParams.set('pid', projectId.toString());
+    return NextResponse.redirect(url, 302);
+}
+
 async function processSurveyCallback(params: ProcessCallbackParams): Promise<NextResponse> {
-    const { rawStatus, uid, sessionId, pid, sid, shouldRedirect, baseUrl = '' } = params;
+    const { rawStatus, uid, sessionId, pid, shouldRedirect, baseUrl = '' } = params;
 
     // 1. Validate required fields
     if (!rawStatus || (!uid && !sessionId)) {
@@ -221,37 +187,13 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
         const finalStatuses = ['complete', 'disqualified', 'quota_full', 'security', 'drop'];
         const isFinal = finalStatuses.includes(session.status);
 
-        let supplierReturnUrl: string | null = null;
-        if (supplier) {
-            let targetTemplate = '';
-            if (normalizedStatus === 'complete' && supplier.completionUrl) {
-                targetTemplate = supplier.completionUrl;
-            } else if (normalizedStatus === 'disqualified' && supplier.terminateUrl) {
-                targetTemplate = supplier.terminateUrl;
-            } else if (normalizedStatus === 'quota_full' && supplier.quotaFullUrl) {
-                targetTemplate = supplier.quotaFullUrl;
-            } else if (normalizedStatus === 'security' && supplier.securityUrl) {
-                targetTemplate = supplier.securityUrl;
-            }
-
-            if (targetTemplate) {
-                supplierReturnUrl = interpolateReturnUrl(targetTemplate, {
-                    uid: session.respondentUid,
-                    sessionId: session.sessionId,
-                    pid: session.projectId?.toString(),
-                    sid: supplier._id?.toString(),
-                    status: normalizedStatus,
-                });
-            }
-        }
-
         if (isFinal) {
             console.log(
                 `[SURVEY-CALLBACK] Duplicate callback ignored for sessionId=${session.sessionId}, uid=${session.respondentUid}, currentStatus=${session.status}`
             );
 
-            if (shouldRedirect && supplierReturnUrl) {
-                return NextResponse.redirect(supplierReturnUrl, 302);
+            if (shouldRedirect) {
+                return resultPageRedirect(baseUrl, rawStatus, session.respondentUid, session.sessionId, session.projectId);
             }
 
             return NextResponse.json({
@@ -268,7 +210,7 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
                     entryTimestamp: session.entryTimestamp,
                     exitTimestamp: session.exitTimestamp,
                 },
-                supplierReturnUrl,
+                supplierReturnUrl: null,
             });
         }
 
@@ -327,17 +269,7 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
 
         // 9. Handle Browser Redirect if requested
         if (shouldRedirect) {
-            if (supplierReturnUrl) {
-                return NextResponse.redirect(supplierReturnUrl, 302);
-            }
-            // Fallback redirect to client-redirect-url display page
-            const redirectPageUrl = new URL('/client-redirect-url', baseUrl || 'http://localhost:3000');
-            redirectPageUrl.searchParams.set('status', rawStatus);
-            redirectPageUrl.searchParams.set('uid', session.respondentUid);
-            if (session.projectId) {
-                redirectPageUrl.searchParams.set('sid', session.projectId.toString());
-            }
-            return NextResponse.redirect(redirectPageUrl.toString(), 302);
+            return resultPageRedirect(baseUrl, rawStatus, session.respondentUid, session.sessionId, session.projectId);
         }
 
         // 10. Return JSON Response
@@ -355,7 +287,7 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
                 entryTimestamp: session.entryTimestamp,
                 exitTimestamp: session.exitTimestamp,
             },
-            supplierReturnUrl,
+            supplierReturnUrl: null,
         });
 
     } catch (error) {
@@ -376,7 +308,6 @@ export async function GET(req: Request) {
     const uid = (searchParams.get('uid') || searchParams.get('respondentUid') || searchParams.get('rid') || searchParams.get('id') || '').trim();
     const sessionId = (searchParams.get('sessionId') || searchParams.get('txid') || '').trim();
     const pid = (searchParams.get('pid') || searchParams.get('projectId') || searchParams.get('sid') || '').trim();
-    const sid = (searchParams.get('supplierId') || '').trim();
     const shouldRedirect = searchParams.get('redirect') === 'true' || searchParams.get('redirect') === '1';
 
     return processSurveyCallback({
@@ -384,7 +315,6 @@ export async function GET(req: Request) {
         uid,
         sessionId,
         pid,
-        sid,
         shouldRedirect,
         baseUrl: origin,
     });
@@ -399,7 +329,6 @@ export async function POST(req: Request) {
         const uid = (body.uid || body.respondentUid || body.rid || body.id || searchParams.get('uid') || searchParams.get('respondentUid') || '').trim();
         const sessionId = (body.sessionId || body.txid || searchParams.get('sessionId') || searchParams.get('txid') || '').trim();
         const pid = (body.pid || body.projectId || searchParams.get('pid') || searchParams.get('projectId') || searchParams.get('sid') || '').trim();
-        const sid = (body.sid || body.supplierId || searchParams.get('supplierId') || '').trim();
         const shouldRedirect = Boolean(body.redirect || searchParams.get('redirect') === 'true' || searchParams.get('redirect') === '1');
 
         return processSurveyCallback({
@@ -407,7 +336,6 @@ export async function POST(req: Request) {
             uid,
             sessionId,
             pid,
-            sid,
             shouldRedirect,
             baseUrl: origin,
         });

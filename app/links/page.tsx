@@ -15,10 +15,10 @@ import {
 } from "@/frontend/components/ui/table";
 
 const links = [
-    { sn: 1, status: "Complete", url: "https://www.inexraresearch.com/client-redirect-url?uid=[uid]&status=complete" },
-    { sn: 2, status: "Disqualify", url: "https://www.inexraresearch.com/client-redirect-url?uid=[uid]&status=terminate" },
-    { sn: 3, status: "Quota Full", url: "https://www.inexraresearch.com/client-redirect-url?uid=[uid]&status=quota_full" },
-    { sn: 4, status: "Security Term", url: "https://www.inexraresearch.com/client-redirect-url?uid=[uid]&status=security_terminate" },
+    { sn: 1, status: "Complete", url: "https://www.inexraresearch.com/api/survey-callback?uid=[uid]&pid=[pid]&status=complete&redirect=true" },
+    { sn: 2, status: "Disqualify", url: "https://www.inexraresearch.com/api/survey-callback?uid=[uid]&pid=[pid]&status=terminate&redirect=true" },
+    { sn: 3, status: "Quota Full", url: "https://www.inexraresearch.com/api/survey-callback?uid=[uid]&pid=[pid]&status=quota_full&redirect=true" },
+    { sn: 4, status: "Security Term", url: "https://www.inexraresearch.com/api/survey-callback?uid=[uid]&pid=[pid]&status=security_terminate&redirect=true" },
 ];
 
 export default function LinksPage() {
@@ -34,6 +34,9 @@ export default function LinksPage() {
             <main className="flex-1 p-6 max-w-[1600px] w-full mx-auto">
                 <div className="space-y-6">
                     <h1 className="text-2xl font-bold text-inexra-navy uppercase">CLIENT REDIRECT LINKS</h1>
+                    <p className="text-sm text-gray-600">
+                        Replace <code>[uid]</code> with the respondent UID and <code>[pid]</code> with the Inexra project ID. Supplier-specific links already contain the project ID.
+                    </p>
 
                     <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
                         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/30">
