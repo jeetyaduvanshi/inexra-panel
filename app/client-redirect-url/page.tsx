@@ -192,11 +192,20 @@ function RedirectContent() {
                             fontSize: '22px',
                             fontWeight: 800,
                             letterSpacing: '1.2px',
-                            margin: '0 0 6px 0',
+                            margin: '0 0 4px 0',
                             textTransform: 'uppercase',
                         }}>
                             INEXRA RESEARCH
                         </h2>
+                        <p style={{
+                            color: '#f1b324',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            margin: '0 0 6px 0',
+                            letterSpacing: '0.8px',
+                        }}>
+                            & ANALYTICS
+                        </p>
                         <p style={{
                             color: '#94a3b8',
                             fontSize: '13px',

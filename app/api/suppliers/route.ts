@@ -19,7 +19,7 @@ function getBaseUrl(req: Request): string {
 }
 
 function buildCallbackUrl(baseUrl: string, projectId: string, status: string): string {
-    return `${baseUrl}/api/survey-callback?uid=[uid]&pid=${encodeURIComponent(projectId)}&status=${status}&redirect=true`;
+    return `${baseUrl}/api/survey-callback?uid=[uid]&sessionId=[sessionId]&pid=${encodeURIComponent(projectId)}&status=${status}&redirect=true`;
 }
 
 // Only replace panel-generated legacy URLs. Custom client URLs are left intact.

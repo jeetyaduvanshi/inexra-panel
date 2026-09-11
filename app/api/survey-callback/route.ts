@@ -166,42 +166,79 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
             }
         }
 
-        // If session still not found
-        if (!session) {
-            console.warn(`[SURVEY-CALLBACK] No session found for uid="${uid}", sessionId="${sessionId}", pid="${pid}"`);
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: `No survey session found for respondent '${uid || sessionId}'.`,
-                    notFound: true,
-                },
-                { status: 404 }
-            );
+        // 4. Load Supplier and Project or auto-create session if missing
+        let supplier = null;
+        let project = null;
+
+        if (session) {
+            [supplier, project] = await Promise.all([
+                session.supplierId ? Supplier.findById(session.supplierId) : null,
+                session.projectId ? Project.findById(session.projectId) : null,
+            ]);
+        } else {
+            // Auto-create session if not found but pid or uid is provided
+            let projectIdObj: mongoose.Types.ObjectId | null = null;
+            if (pid) {
+                if (mongoose.Types.ObjectId.isValid(pid)) {
+                    projectIdObj = new mongoose.Types.ObjectId(pid);
+                } else {
+                    const projectDoc = await Project.findOne({
+                        $or: [{ parentId: pid }, { projectName: pid }],
+                    });
+                    if (projectDoc) projectIdObj = projectDoc._id;
+                }
+            }
+
+            if (projectIdObj) {
+                [supplier, project] = await Promise.all([
+                    Supplier.findOne({ projectId: projectIdObj }),
+                    Project.findById(projectIdObj),
+                ]);
+            }
+
+            if (project && supplier) {
+                session = new Session({
+                    sessionId: sessionId || crypto.randomUUID(),
+                    projectId: project._id,
+                    supplierId: supplier._id,
+                    respondentUid: uid || 'anonymous',
+                    ip: clientIp || 'unknown',
+                    status: 'started',
+                    payout: 0,
+                    entryTimestamp: new Date(),
+                });
+            } else {
+                console.warn(`[SURVEY-CALLBACK] No session found for uid="${uid}", sessionId="${sessionId}", pid="${pid}"`);
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: `No survey session found for respondent '${uid || sessionId}'.`,
+                        notFound: true,
+                    },
+                    { status: 404 }
+                );
+            }
         }
 
-        // 4. Load Supplier and Project
-        const [supplier, project] = await Promise.all([
-            Supplier.findById(session.supplierId),
-            Project.findById(session.projectId),
-        ]);
+        // 5. Idempotency & Final-Status Guard
+        const isTestUid = uid === '[uid]' || uid === '%5Buid%5D' || uid === 'TEST_USER' || uid.includes('[') || uid.includes(']');
+        const previousStatus = session.status;
+        const FINAL_STATUSES = ['complete', 'disqualified', 'quota_full', 'security', 'drop'];
+        const isAlreadyFinal = !isTestUid && FINAL_STATUSES.includes(previousStatus);
 
-        // 5. Idempotency Check
-        // If session is already finalized, DO NOT re-increment counters or re-calculate payout
-        const finalStatuses = ['complete', 'disqualified', 'quota_full', 'security', 'drop'];
-        const isFinal = finalStatuses.includes(session.status);
-
-        if (isFinal) {
+        if (isAlreadyFinal) {
             console.log(
-                `[SURVEY-CALLBACK] Duplicate callback ignored for sessionId=${session.sessionId}, uid=${session.respondentUid}, currentStatus=${session.status}`
+                `[SURVEY-CALLBACK] ${new Date().toISOString()} | BLOCKED: Session already final. sessionId=${session.sessionId}, uid=${session.respondentUid}, currentStatus=${session.status}, attemptedStatus=${normalizedStatus}`
             );
 
+            const resolvedIp = (session?.ip && session.ip !== 'unknown' ? session.ip : clientIp) || '';
             if (shouldRedirect) {
-                return resultPageRedirect(baseUrl, rawStatus, session.respondentUid, session.sessionId, session.projectId);
+                return resultPageRedirect(baseUrl, rawStatus, session.respondentUid, session.sessionId, session.projectId, resolvedIp);
             }
 
             return NextResponse.json({
                 success: true,
-                message: `Session already in final state: ${session.status}`,
+                message: `Session already in final state: ${session.status}. Cannot change to ${normalizedStatus}.`,
                 duplicate: true,
                 session: {
                     sessionId: session.sessionId,
@@ -209,6 +246,7 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
                     projectId: session.projectId,
                     supplierId: session.supplierId,
                     status: session.status,
+                    ip: resolvedIp,
                     payout: session.payout,
                     entryTimestamp: session.entryTimestamp,
                     exitTimestamp: session.exitTimestamp,
@@ -217,19 +255,36 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
             });
         }
 
-        // 6. Calculate Payout (only applies to completes)
-        let payout = 0;
-        if (normalizedStatus === 'complete') {
-            payout = supplier?.cpi || session.payout || 0;
+        // 6. Update or Create Session Record
+        if (isTestUid && previousStatus !== 'started') {
+            session = new Session({
+                sessionId: crypto.randomUUID(),
+                projectId: session.projectId,
+                supplierId: session.supplierId,
+                respondentUid: uid,
+                ip: clientIp || session.ip || 'unknown',
+                status: normalizedStatus,
+                payout: normalizedStatus === 'complete' ? (supplier?.cpi || 0) : 0,
+                entryTimestamp: new Date(),
+                exitTimestamp: new Date(),
+            });
+            await session.save();
+        } else {
+            let payout = 0;
+            if (normalizedStatus === 'complete') {
+                payout = supplier?.cpi || session.payout || 0;
+            }
+
+            session.status = normalizedStatus;
+            session.payout = payout;
+            session.exitTimestamp = new Date();
+            if (clientIp && (!session.ip || session.ip === 'unknown')) {
+                session.ip = clientIp;
+            }
+            await session.save();
         }
 
-        // 7. Update Session Record
-        session.status = normalizedStatus;
-        session.payout = payout;
-        session.exitTimestamp = new Date();
-        await session.save();
-
-        // 8. Atomically Update Metric Counters on Supplier & Project
+        // 7. Atomically Update Metric Counters on Supplier & Project
         const supplierInc: Record<string, number> = {};
         const projectInc: Record<string, number> = {};
 
@@ -240,13 +295,15 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
                 break;
             case 'disqualified':
                 supplierInc.disqualified = 1;
-                projectInc.disqualify = 1; // Project model uses 'disqualify'
+                projectInc.disqualify = 1;
                 break;
             case 'quota_full':
                 supplierInc.quotaFull = 1;
+                projectInc.quotaFull = 1;
                 break;
             case 'security':
                 supplierInc.securityTerm = 1;
+                projectInc.securityTerm = 1;
                 break;
             case 'drop':
                 supplierInc.drop = 1;
@@ -267,10 +324,10 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
         await Promise.all(updatePromises);
 
         console.log(
-            `[SURVEY-CALLBACK] Successfully processed sessionId=${session.sessionId}, uid=${session.respondentUid}, status=${rawStatus} -> ${normalizedStatus}, payout=${payout}`
+            `[SURVEY-CALLBACK] ${new Date().toISOString()} | OK: sessionId=${session.sessionId}, uid=${session.respondentUid}, ${previousStatus} -> ${normalizedStatus}, supplier=${ supplier?._id}, project=${project?._id}`
         );
 
-        // 9. Handle Browser Redirect if requested
+        // 8. Handle Browser Redirect if requested
         const resolvedIp = (session?.ip && session.ip !== 'unknown' ? session.ip : clientIp) || '';
         if (shouldRedirect) {
             return resultPageRedirect(baseUrl, rawStatus, session.respondentUid, session.sessionId, session.projectId, resolvedIp);

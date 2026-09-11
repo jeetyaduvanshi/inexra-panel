@@ -91,6 +91,8 @@ const ProjectSchema = new mongoose.Schema({
     hits: { type: Number, default: 0, min: 0 },
     completes: { type: Number, default: 0, min: 0 },
     disqualify: { type: Number, default: 0, min: 0 },
+    quotaFull: { type: Number, default: 0, min: 0 },
+    securityTerm: { type: Number, default: 0, min: 0 },
     drop: { type: Number, default: 0, min: 0 },
 
     // ── Memorandum ────────────────────────────────────────────

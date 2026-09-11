@@ -68,8 +68,9 @@ export async function GET(
         await Project.findByIdAndUpdate(supplier.projectId, { $inc: { hits: 1 } });
 
         // 3. Create Session if UID is provided
+        let sessionId = '';
         if (uid) {
-            const sessionId = crypto.randomUUID();
+            sessionId = crypto.randomUUID();
             const realIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
             const userAgent = request.headers.get('user-agent') || '';
 
@@ -95,6 +96,21 @@ export async function GET(
                 destinationUrl = `${destinationUrl}${separator}uid=${encodeURIComponent(uid)}`;
             }
         }
+
+        // 5. Inject sessionId into destination URL for round-trip callback tracking
+        if (sessionId) {
+            if (/\[sessionId\]|\[session_id\]|\[txid\]|\{\{sessionId\}\}|\{\{session_id\}\}/i.test(destinationUrl)) {
+                destinationUrl = destinationUrl.replace(
+                    /\[sessionId\]|\[session_id\]|\[txid\]|\{\{sessionId\}\}|\{\{session_id\}\}/gi,
+                    encodeURIComponent(sessionId)
+                );
+            } else {
+                const separator = destinationUrl.includes('?') ? '&' : '?';
+                destinationUrl = `${destinationUrl}${separator}sessionId=${encodeURIComponent(sessionId)}`;
+            }
+        }
+
+        console.log(`[SLUG-REDIRECT] ${new Date().toISOString()} | slug=${slug}, uid=${uid}, sessionId=${sessionId}, dest=${destinationUrl}`);
 
         return NextResponse.redirect(destinationUrl);
 
