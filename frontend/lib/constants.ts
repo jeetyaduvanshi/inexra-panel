@@ -91,19 +91,14 @@ export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 export const SUPPORTED_DEVICES = ["Desktop", "Mobile", "Tablet"] as const;
 
 export const ALL_PROJECT_MANAGERS = [
-    "KO Shukla",
-    "R.K Shukla",
-    "Rahul Kumar",
-    "Priya Singh",
-    "Amit Verma",
-    "Neha Joshi",
+    "Hardik Saini",
+    "Jeet Yaduvanshi",
+    "Kunal Saini",
 ];
 
 export const ALL_SALES_MANAGERS = [
-    "KO Shukla",
-    "R.K Shukla",
-    "Amit Verma",
-    "Neha Joshi",
-    "Vikram Mehta",
-    "Anjali Sharma",
+    "Hardik Saini",
+    "Jeet Yaduvanshi",
+    "Kunal Saini",
 ];
+
