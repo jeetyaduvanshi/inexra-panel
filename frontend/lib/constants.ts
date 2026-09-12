@@ -92,13 +92,13 @@ export const SUPPORTED_DEVICES = ["Desktop", "Mobile", "Tablet"] as const;
 
 export const ALL_PROJECT_MANAGERS = [
     "Hardik Saini",
-    "Jeet Yaduvanshi",
+    "Amarjeet Yadav",
     "Kunal Saini",
 ];
 
 export const ALL_SALES_MANAGERS = [
     "Hardik Saini",
-    "Jeet Yaduvanshi",
+    "Amarjeet Yadav",
     "Kunal Saini",
 ];
 
