@@ -194,11 +194,20 @@ function SuppliersTab({ project }: { project: Project }) {
     const [expandedSuppliers, setExpandedSuppliers]     = useState<Record<string, boolean>>({});
     const [actionLoadingId, setActionLoadingId]         = useState<string | null>(null);
 
-    const baseUrl = typeof window !== "undefined" && window.location.origin && !window.location.origin.includes("inexraresearch.com")
+    const isMarketingSite = (urlOrOrigin: string) => {
+        try {
+            const host = urlOrOrigin.includes("://") ? new URL(urlOrOrigin).hostname.toLowerCase() : urlOrOrigin.toLowerCase();
+            return host === "inexraresearch.com" || host === "www.inexraresearch.com";
+        } catch {
+            return false;
+        }
+    };
+
+    const baseUrl = typeof window !== "undefined" && window.location.origin && !isMarketingSite(window.location.origin)
         ? window.location.origin
-        : (process.env.NEXT_PUBLIC_BASE_URL && !process.env.NEXT_PUBLIC_BASE_URL.includes("inexraresearch.com")
+        : (process.env.NEXT_PUBLIC_BASE_URL && !isMarketingSite(process.env.NEXT_PUBLIC_BASE_URL)
             ? process.env.NEXT_PUBLIC_BASE_URL
-            : "https://inexra-panel.vercel.app");
+            : "https://panel.inexraresearch.com");
 
     const fetchSuppliers = async () => {
         setLoading(true);

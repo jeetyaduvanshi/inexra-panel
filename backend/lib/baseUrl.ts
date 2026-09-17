@@ -6,7 +6,7 @@
  * and NEVER to the marketing website (inexraresearch.com / www.inexraresearch.com).
  */
 
-export const PANEL_DEFAULT_FALLBACK = 'https://inexra-panel.vercel.app';
+export const PANEL_DEFAULT_FALLBACK = 'https://panel.inexraresearch.com';
 
 /**
  * Checks if a given host, hostname, or URL belongs to the marketing website.

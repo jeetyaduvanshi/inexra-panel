@@ -22,7 +22,7 @@ const LINK_STATUSES = [
 ];
 
 export default function LinksPage() {
-    const [origin, setOrigin] = useState("https://inexra-panel.vercel.app");
+    const [origin, setOrigin] = useState("https://panel.inexraresearch.com");
     const [copiedSn, setCopiedSn] = useState<number | null>(null);
 
     // Use actual panel origin on client — ignores marketing website domain if somehow opened from there
@@ -114,11 +114,6 @@ export default function LinksPage() {
                                 ))}
                             </TableBody>
                         </Table>
-                    </div>
-
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs text-amber-800">
-                        <strong>⚠️ Important:</strong> These URLs point to the <strong>Inexra Panel</strong> app (<code>{origin}</code>), not the marketing website.
-                        If you want a custom domain like <code>panel.inexraresearch.com</code>, add it in Vercel → Project Settings → Domains.
                     </div>
                 </div>
             </main>
