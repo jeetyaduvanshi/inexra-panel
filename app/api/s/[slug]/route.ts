@@ -5,18 +5,7 @@ import Project from '@/backend/models/Project';
 import Session from '@/backend/models/Session';
 import crypto from 'crypto';
 
-function getBaseUrl(req: Request): string {
-    const originHeader = req.headers.get('origin');
-    if (originHeader) return originHeader;
-
-    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-    if (host) {
-        const proto = req.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
-        return `${proto}://${host}`;
-    }
-
-    return process.env.NEXT_PUBLIC_BASE_URL || 'https://www.inexraresearch.com';
-}
+import { getBaseUrl } from '@/backend/lib/baseUrl';
 
 export async function GET(
     request: Request,

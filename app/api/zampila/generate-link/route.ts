@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import dbConnect from '@/backend/lib/db';
 import GeneratedLink from '@/backend/models/GeneratedLink';
-
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://inexra-panel.com';
+import { getBaseUrl } from '@/backend/lib/baseUrl';
 
 // POST - Generate a tracking link for a survey
 export async function POST(req: Request) {
@@ -27,9 +26,10 @@ export async function POST(req: Request) {
 
         // Generate secure UUID txid
         const txid = crypto.randomUUID();
+        const baseUrl = getBaseUrl(req);
 
         // Build tracking URL matching Zamplia URL pattern
-        const generatedUrl = `${BASE_URL}/client-api-data/zamplia/link/${encodeURIComponent(surveyId)}?id=${encodeURIComponent(surveyId)}&transectionid=${encodeURIComponent(uid)}&ip=${encodeURIComponent(ipAddress || 'unknown')}`;
+        const generatedUrl = `${baseUrl}/client-api-data/zamplia/link/${encodeURIComponent(surveyId)}?id=${encodeURIComponent(surveyId)}&transectionid=${encodeURIComponent(uid)}&ip=${encodeURIComponent(ipAddress || 'unknown')}`;
 
         // Save to GeneratedLink collection
         const generatedLink = await GeneratedLink.create({

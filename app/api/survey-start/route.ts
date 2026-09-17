@@ -6,21 +6,7 @@ import Session from '@/backend/models/Session';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 
-/**
- * Determine base URL for redirects.
- */
-function getBaseUrl(req: Request): string {
-    const originHeader = req.headers.get('origin');
-    if (originHeader) return originHeader;
-
-    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-    if (host) {
-        const proto = req.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
-        return `${proto}://${host}`;
-    }
-
-    return process.env.NEXT_PUBLIC_BASE_URL || 'https://www.inexraresearch.com';
-}
+import { getBaseUrl, sanitizePanelUrl } from '@/backend/lib/baseUrl';
 
 /**
  * Replace placeholder tokens in target survey or supplier return URLs.
@@ -99,7 +85,8 @@ function getSupplierExitRedirect(
     }
 
     if (destinationUrl) {
-        const finalUrl = interpolateUrl(destinationUrl, {
+        const sanitizedDest = sanitizePanelUrl(destinationUrl, baseUrl);
+        const finalUrl = interpolateUrl(sanitizedDest, {
             uid,
             sessionId,
             pid,

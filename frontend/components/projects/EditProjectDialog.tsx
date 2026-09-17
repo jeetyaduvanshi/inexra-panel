@@ -194,7 +194,11 @@ function SuppliersTab({ project }: { project: Project }) {
     const [expandedSuppliers, setExpandedSuppliers]     = useState<Record<string, boolean>>({});
     const [actionLoadingId, setActionLoadingId]         = useState<string | null>(null);
 
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://www.inexraresearch.com";
+    const baseUrl = typeof window !== "undefined" && window.location.origin && !window.location.origin.includes("inexraresearch.com")
+        ? window.location.origin
+        : (process.env.NEXT_PUBLIC_BASE_URL && !process.env.NEXT_PUBLIC_BASE_URL.includes("inexraresearch.com")
+            ? process.env.NEXT_PUBLIC_BASE_URL
+            : "https://inexra-panel.vercel.app");
 
     const fetchSuppliers = async () => {
         setLoading(true);
@@ -484,14 +488,29 @@ function SuppliersTab({ project }: { project: Project }) {
                                 const isExpanded = expandedSuppliers[sup._id] ?? true;
                                 const isActionLoading = actionLoadingId === sup._id;
 
-                                // Auto-generated links
-                                const liveSurveyUrl = sup.surveyLink || `${baseUrl}/api/s/${sup.trackingSlug}?uid=[uid]`;
-                                const testSurveyUrl = sup.testLink || `${baseUrl}/api/s/${sup.trackingSlug}?uid=TEST_USER`;
+                                // Auto-generated links (ensures links point to panel, not marketing site)
+                                const sanitizePanelLink = (url?: string, fallback = "") => {
+                                    if (!url) return fallback;
+                                    if (url.includes("inexraresearch.com") || url.includes("www.inexraresearch.com")) {
+                                        try {
+                                            const parsed = new URL(url);
+                                            if (parsed.hostname === "inexraresearch.com" || parsed.hostname === "www.inexraresearch.com") {
+                                                return `${baseUrl}${parsed.pathname}${parsed.search}`;
+                                            }
+                                        } catch {
+                                            return fallback;
+                                        }
+                                    }
+                                    return url;
+                                };
+
                                 const callbackUrl = (status: string) => `${baseUrl}/api/survey-callback?uid=[uid]&pid=${encodeURIComponent(project.id)}&status=${status}&redirect=true`;
-                                const completeUrl   = sup.completionUrl || callbackUrl('complete');
-                                const terminateUrl  = sup.terminateUrl || callbackUrl('terminate');
-                                const quotaFullUrl  = sup.quotaFullUrl || callbackUrl('quota_full');
-                                const securityUrl   = sup.securityUrl || callbackUrl('security_terminate');
+                                const liveSurveyUrl = sanitizePanelLink(sup.surveyLink, `${baseUrl}/api/s/${sup.trackingSlug}?uid=[uid]`);
+                                const testSurveyUrl = sanitizePanelLink(sup.testLink, `${baseUrl}/api/s/${sup.trackingSlug}?uid=TEST_USER`);
+                                const completeUrl   = sanitizePanelLink(sup.completionUrl, callbackUrl('complete'));
+                                const terminateUrl  = sanitizePanelLink(sup.terminateUrl, callbackUrl('terminate'));
+                                const quotaFullUrl  = sanitizePanelLink(sup.quotaFullUrl, callbackUrl('quota_full'));
+                                const securityUrl   = sanitizePanelLink(sup.securityUrl, callbackUrl('security_terminate'));
 
                                 const isPaused = sup.status === "paused";
 

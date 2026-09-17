@@ -5,6 +5,7 @@ import Session from '@/backend/models/Session';
 import Supplier from '@/backend/models/Supplier';
 import Project from '@/backend/models/Project';
 import GeneratedLink from '@/backend/models/GeneratedLink';
+import { getBaseUrl } from '@/backend/lib/baseUrl';
 
 // ─── Status Normalization ───────────────────────────────────────────────────
 
@@ -375,13 +376,15 @@ export async function GET(req: Request) {
     const pid = (searchParams.get('pid') || searchParams.get('projectId') || searchParams.get('sid') || '').trim();
     const shouldRedirect = searchParams.get('redirect') === 'true' || searchParams.get('redirect') === '1';
 
+    const baseUrl = getBaseUrl(req);
+
     return processSurveyCallback({
         rawStatus,
         uid,
         sessionId,
         pid,
         shouldRedirect,
-        baseUrl: origin,
+        baseUrl,
         clientIp,
     });
 }
@@ -389,7 +392,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json().catch(() => ({}));
-        const { searchParams, origin } = new URL(req.url);
+        const { searchParams } = new URL(req.url);
         const forwarded = req.headers.get('x-forwarded-for');
         const realIp = req.headers.get('x-real-ip');
         const clientIp = (forwarded ? forwarded.split(',')[0].trim() : realIp) || '';
@@ -399,6 +402,7 @@ export async function POST(req: Request) {
         const sessionId = (body.sessionId || body.txid || searchParams.get('sessionId') || searchParams.get('txid') || '').trim();
         const pid = (body.pid || body.projectId || searchParams.get('pid') || searchParams.get('projectId') || searchParams.get('sid') || '').trim();
         const shouldRedirect = Boolean(body.redirect || searchParams.get('redirect') === 'true' || searchParams.get('redirect') === '1');
+        const baseUrl = getBaseUrl(req);
 
         return processSurveyCallback({
             rawStatus,
@@ -406,7 +410,7 @@ export async function POST(req: Request) {
             sessionId,
             pid,
             shouldRedirect,
-            baseUrl: origin,
+            baseUrl,
             clientIp,
         });
     } catch (error) {
