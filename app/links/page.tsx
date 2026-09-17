@@ -115,6 +115,10 @@ export default function LinksPage() {
                             </TableBody>
                         </Table>
                     </div>
+
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-xs text-emerald-800">
+                        <strong>✅ Configured Domain:</strong> These redirect URLs point to your dedicated panel domain: <code className="font-bold text-emerald-900">{origin}</code>. They will cleanly route survey completions and status updates back into your Inexra Panel.
+                    </div>
                 </div>
             </main>
         </div>

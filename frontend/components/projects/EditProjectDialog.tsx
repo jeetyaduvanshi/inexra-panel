@@ -194,18 +194,12 @@ function SuppliersTab({ project }: { project: Project }) {
     const [expandedSuppliers, setExpandedSuppliers]     = useState<Record<string, boolean>>({});
     const [actionLoadingId, setActionLoadingId]         = useState<string | null>(null);
 
-    const isMarketingSite = (urlOrOrigin: string) => {
-        try {
-            const host = urlOrOrigin.includes("://") ? new URL(urlOrOrigin).hostname.toLowerCase() : urlOrOrigin.toLowerCase();
-            return host === "inexraresearch.com" || host === "www.inexraresearch.com";
-        } catch {
-            return false;
-        }
-    };
+    const isMarketing = typeof window !== "undefined" &&
+        (window.location.hostname === "inexraresearch.com" || window.location.hostname === "www.inexraresearch.com");
 
-    const baseUrl = typeof window !== "undefined" && window.location.origin && !isMarketingSite(window.location.origin)
+    const baseUrl = typeof window !== "undefined" && window.location.origin && !isMarketing
         ? window.location.origin
-        : (process.env.NEXT_PUBLIC_BASE_URL && !isMarketingSite(process.env.NEXT_PUBLIC_BASE_URL)
+        : (process.env.NEXT_PUBLIC_BASE_URL && !process.env.NEXT_PUBLIC_BASE_URL.includes("www.inexraresearch.com")
             ? process.env.NEXT_PUBLIC_BASE_URL
             : "https://panel.inexraresearch.com");
 

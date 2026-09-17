@@ -10,6 +10,7 @@ export const PANEL_DEFAULT_FALLBACK = 'https://panel.inexraresearch.com';
 
 /**
  * Checks if a given host, hostname, or URL belongs to the marketing website.
+ * Matches apex inexraresearch.com and www.inexraresearch.com, but ALLOWS panel.inexraresearch.com.
  */
 export function isMarketingDomain(hostOrUrl?: string | null): boolean {
     if (!hostOrUrl) return false;
@@ -18,8 +19,8 @@ export function isMarketingDomain(hostOrUrl?: string | null): boolean {
         const clean = raw.split(':')[0].toLowerCase().trim();
         return clean === 'inexraresearch.com' || clean === 'www.inexraresearch.com';
     } catch {
-        const lower = hostOrUrl.toLowerCase();
-        return lower.includes('www.inexraresearch.com') || lower.startsWith('inexraresearch.com');
+        const lower = hostOrUrl.toLowerCase().trim().replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+        return lower === 'inexraresearch.com' || lower === 'www.inexraresearch.com';
     }
 }
 
