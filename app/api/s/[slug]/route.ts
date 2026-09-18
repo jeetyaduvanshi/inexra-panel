@@ -56,47 +56,46 @@ export async function GET(
         // 2. Increment Hits for Parent Project
         await Project.findByIdAndUpdate(supplier.projectId, { $inc: { hits: 1 } });
 
-        // 3. Create Session if UID is provided
-        let sessionId = '';
-        if (uid) {
-            sessionId = crypto.randomUUID();
-            const realIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
-            const userAgent = request.headers.get('user-agent') || '';
+        // 3. Always create a Session so that callbacks can always find + update the correct project counters.
+        //    If no uid is provided (e.g. direct test), generate a temporary one so tracking still works.
+        const resolvedUid = uid || `ANON_${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+        const sessionId = crypto.randomUUID();
+        const realIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+        const userAgent = request.headers.get('user-agent') || '';
 
-            await Session.create({
-                sessionId,
-                projectId: supplier.projectId,
-                supplierId: supplier._id,
-                respondentUid: uid,
-                ip: realIp.split(',')[0].trim(),
-                userAgent,
-                status: 'started',
-                payout: supplier.cpi || 0,
-            }).catch((err) => console.error('Session create error in slug tracking:', err));
-        }
+        await Session.create({
+            sessionId,
+            projectId: supplier.projectId,
+            supplierId: supplier._id,
+            respondentUid: resolvedUid,
+            ip: realIp.split(',')[0].trim(),
+            userAgent,
+            status: 'started',
+            payout: supplier.cpi || 0,
+        }).catch((err) => console.error('Session create error in slug tracking:', err));
 
         // 4. Resolve destination URL by replacing UID placeholder, filling empty param (e.g. &pid= or &uid=), or appending it
         let destinationUrl = supplier.originalLink.trim();
         let uidFilled = false;
 
-        if (uid) {
+        if (resolvedUid) {
             const uidPlaceholderRegex = /[\[{<](?:uid|rid|pid|id|respondent_?id|panelist_?id|panellist_?id|sub_?id|user_?id)[\]}>]/i;
             if (uidPlaceholderRegex.test(destinationUrl)) {
-                destinationUrl = destinationUrl.replace(new RegExp(uidPlaceholderRegex.source, 'gi'), encodeURIComponent(uid));
+                destinationUrl = destinationUrl.replace(new RegExp(uidPlaceholderRegex.source, 'gi'), encodeURIComponent(resolvedUid));
                 uidFilled = true;
             }
 
             // Fill empty parameter in query string (e.g. &pid= or ?pid= or &uid=)
             const emptyUidParamRegex = /([?&](?:uid|pid|rid|id|respondent_?id|panelist_?id|panellist_?id|sub_?id|user_?id))=(&|$)/i;
             if (!uidFilled && emptyUidParamRegex.test(destinationUrl)) {
-                destinationUrl = destinationUrl.replace(emptyUidParamRegex, (_, p1, p2) => `${p1}=${encodeURIComponent(uid)}${p2}`);
+                destinationUrl = destinationUrl.replace(emptyUidParamRegex, (_, p1, p2) => `${p1}=${encodeURIComponent(resolvedUid)}${p2}`);
                 uidFilled = true;
             }
 
-            // Fallback append uid if not filled
-            if (!uidFilled) {
+            // Fallback: append uid only if it was a real uid (not auto-generated anonymous)
+            if (!uidFilled && uid) {
                 const separator = destinationUrl.includes('?') ? '&' : '?';
-                destinationUrl = `${destinationUrl}${separator}uid=${encodeURIComponent(uid)}`;
+                destinationUrl = `${destinationUrl}${separator}uid=${encodeURIComponent(resolvedUid)}`;
             }
         }
 
