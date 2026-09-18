@@ -25,6 +25,7 @@ import { ALL_COUNTRIES, ALL_CLIENTS, PROJECT_STATUSES, ALL_SELF_PARENTS, ALL_PRO
 
 export interface Project {
     id             : string;
+    projectId      : number;
     sn             : number;
     parent         : string | number;
     name           : string;
@@ -92,10 +93,12 @@ const STATUS_BADGE: Record<string, string> = {
 // ─── Map raw DB doc → Project ─────────────────────────────────────────────────
 
 function mapProject(p: Record<string, unknown>, idx: number, offset: number): Project {
+    const parentVal = p.parentId && p.parentId !== "Selp Project" && p.parentId !== "—" ? String(p.parentId) : "0";
     return {
         id             : String(p._id),
+        projectId      : typeof p.projectId === "number" ? p.projectId : (Number(p.projectId) || 0),
         sn             : offset + idx + 1,
-        parent         : String(p.parentId || "—"),
+        parent         : parentVal,
         name           : String(p.projectName || ""),
         country        : String(p.country || ""),
         language       : String(p.language || ""),
@@ -510,11 +513,11 @@ export function ProjectList() {
                                 projects.map((p) => (
                                     <TableRow key={p.id} className="hover:bg-blue-50/25 transition-colors">
                                         <TableCell className="text-xs text-gray-500">{p.sn}</TableCell>
-                                        <TableCell className="text-[10px] text-gray-400 font-mono max-w-[80px] truncate">
-                                            {String(p.id).slice(-6)}
+                                        <TableCell className="text-xs font-semibold text-gray-800 font-mono">
+                                            {p.projectId || String(p.id).slice(-4)}
                                         </TableCell>
-                                        <TableCell className="text-xs text-gray-400">
-                                            {p.parent === "—" ? "—" : String(p.parent).slice(-4)}
+                                        <TableCell className="text-xs text-gray-600 font-mono">
+                                            {p.parent}
                                         </TableCell>
                                         <TableCell className="text-xs text-gray-800 min-w-[180px]">
                                             <div className="font-semibold leading-snug">{p.name}</div>

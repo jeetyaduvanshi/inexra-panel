@@ -199,8 +199,8 @@ export function ProjectStatusModal({
                                         className="hover:bg-blue-50/30 transition-colors border-b border-gray-100 text-xs text-gray-700"
                                     >
                                         <TableCell className="font-semibold text-gray-500 py-3 pl-4">{row.sn}</TableCell>
-                                        <TableCell className="font-mono text-gray-600 py-3">{row.id}</TableCell>
-                                        <TableCell className="font-mono text-gray-400 py-3">{row.parent}</TableCell>
+                                        <TableCell className="font-mono font-bold text-gray-800 py-3">{row.id}</TableCell>
+                                        <TableCell className="font-mono text-gray-600 py-3">{row.parent}</TableCell>
                                         <TableCell className="font-semibold text-blue-900 py-3">
                                             <Link
                                                 href={`/projects?search=${encodeURIComponent(row.name)}`}

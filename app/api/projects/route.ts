@@ -21,13 +21,21 @@ export async function GET(req: Request) {
         // ── Build filter query ───────────────────────────────
         const query: Record<string, unknown> = {};
         if (projectId) {
-            query.$expr = {
-                $regexMatch: {
-                    input: { $toString: "$_id" },
-                    regex: projectId,
-                    options: "i"
-                }
-            };
+            const numId = Number(projectId);
+            if (!isNaN(numId)) {
+                query.$or = [
+                    { projectId: numId },
+                    { $expr: { $regexMatch: { input: { $toString: "$_id" }, regex: projectId, options: "i" } } }
+                ];
+            } else {
+                query.$expr = {
+                    $regexMatch: {
+                        input: { $toString: "$_id" },
+                        regex: projectId,
+                        options: "i"
+                    }
+                };
+            }
         }
         if (parentId   && parentId !== 'all')  query.parentId   = parentId;
         if (pm         && pm !== 'all')        query.pm         = pm;
@@ -39,7 +47,7 @@ export async function GET(req: Request) {
 
         const total    = await Project.countDocuments(query);
         const projects = await Project.find(query)
-            .sort({ createdAt: -1 })
+            .sort({ projectId: -1, createdAt: -1 })
             .skip((page - 1) * limit)
             .limit(limit)
             .lean();
@@ -76,9 +84,24 @@ export async function POST(req: Request) {
         await dbConnect();
         const body = await req.json();
 
+        // Calculate next sequential projectId starting from 1
+        const lastProject = await Project.findOne({ projectId: { $exists: true, $ne: null } })
+            .sort({ projectId: -1 })
+            .select('projectId')
+            .lean();
+
+        let nextProjectId = 1;
+        if (lastProject && typeof lastProject.projectId === 'number') {
+            nextProjectId = lastProject.projectId + 1;
+        } else {
+            const count = await Project.countDocuments();
+            nextProjectId = count > 0 ? count + 1 : 1;
+        }
+
         // Convert numeric strings to numbers
         const payload = {
             ...body,
+            projectId         : nextProjectId,
             ir                : Number(body.ir)               || 0,
             loi               : Number(body.loi)              || 0,
             cpi               : Number(body.cpi)              || 0,

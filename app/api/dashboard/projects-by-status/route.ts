@@ -31,7 +31,7 @@ export async function GET(req: Request) {
         }
 
         const projects = await Project.find(query)
-            .sort({ createdAt: -1 })
+            .sort({ projectId: -1, createdAt: -1 })
             .limit(300)
             .lean();
 
@@ -41,9 +41,11 @@ export async function GET(req: Request) {
                 ? created.toLocaleDateString('en-CA')
                 : '-';
 
-            // Short ID display (or parentId if available)
-            const displayId = p.parentId ? p.parentId : String(p._id).slice(-4);
-            const parentDisplay = p.parentId ? p.parentId : '0';
+            // Sequential ID display (e.g. 5, 4, 3, 2, 1)
+            const displayId = (p.projectId != null && p.projectId !== '')
+                ? String(p.projectId)
+                : String(p._id).slice(-4);
+            const parentDisplay = (p.parentId && p.parentId !== 'Selp Project') ? String(p.parentId) : '0';
 
             const pm = p.pm || 'Amarjeet Yadav';
             const sm = p.sm || 'KD Shukla';

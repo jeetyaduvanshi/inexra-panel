@@ -75,12 +75,26 @@ export async function GET(
             }).catch((err) => console.error('Session create error in slug tracking:', err));
         }
 
-        // 4. Resolve destination URL by replacing UID placeholder or appending it
-        let destinationUrl = supplier.originalLink;
+        // 4. Resolve destination URL by replacing UID placeholder, filling empty param (e.g. &pid= or &uid=), or appending it
+        let destinationUrl = supplier.originalLink.trim();
+        let uidFilled = false;
+
         if (uid) {
-            if (/\[uid\]|\[UID\]|\[rid\]|\[RID\]|\{\{uid\}\}|\{\{UID\}\}/.test(destinationUrl)) {
-                destinationUrl = destinationUrl.replace(/\[uid\]|\[UID\]|\[rid\]|\[RID\]|\{\{uid\}\}|\{\{UID\}\}/g, encodeURIComponent(uid));
-            } else {
+            const uidPlaceholderRegex = /[\[{<](?:uid|rid|pid|id|respondent_?id|panelist_?id|panellist_?id|sub_?id|user_?id)[\]}>]/i;
+            if (uidPlaceholderRegex.test(destinationUrl)) {
+                destinationUrl = destinationUrl.replace(new RegExp(uidPlaceholderRegex.source, 'gi'), encodeURIComponent(uid));
+                uidFilled = true;
+            }
+
+            // Fill empty parameter in query string (e.g. &pid= or ?pid= or &uid=)
+            const emptyUidParamRegex = /([?&](?:uid|pid|rid|id|respondent_?id|panelist_?id|panellist_?id|sub_?id|user_?id))=(&|$)/i;
+            if (!uidFilled && emptyUidParamRegex.test(destinationUrl)) {
+                destinationUrl = destinationUrl.replace(emptyUidParamRegex, (_, p1, p2) => `${p1}=${encodeURIComponent(uid)}${p2}`);
+                uidFilled = true;
+            }
+
+            // Fallback append uid if not filled
+            if (!uidFilled) {
                 const separator = destinationUrl.includes('?') ? '&' : '?';
                 destinationUrl = `${destinationUrl}${separator}uid=${encodeURIComponent(uid)}`;
             }
@@ -88,12 +102,20 @@ export async function GET(
 
         // 5. Inject sessionId into destination URL for round-trip callback tracking
         if (sessionId) {
-            if (/\[sessionId\]|\[session_id\]|\[txid\]|\{\{sessionId\}\}|\{\{session_id\}\}/i.test(destinationUrl)) {
-                destinationUrl = destinationUrl.replace(
-                    /\[sessionId\]|\[session_id\]|\[txid\]|\{\{sessionId\}\}|\{\{session_id\}\}/gi,
-                    encodeURIComponent(sessionId)
-                );
-            } else {
+            let sessionFilled = false;
+            const sessionPlaceholderRegex = /[\[{<](?:session_?id|txid|tid|transaction_?id)[\]}>]/i;
+            if (sessionPlaceholderRegex.test(destinationUrl)) {
+                destinationUrl = destinationUrl.replace(new RegExp(sessionPlaceholderRegex.source, 'gi'), encodeURIComponent(sessionId));
+                sessionFilled = true;
+            }
+
+            const emptySessionRegex = /([?&](?:session_?id|txid|tid))=(&|$)/i;
+            if (!sessionFilled && emptySessionRegex.test(destinationUrl)) {
+                destinationUrl = destinationUrl.replace(emptySessionRegex, (_, p1, p2) => `${p1}=${encodeURIComponent(sessionId)}${p2}`);
+                sessionFilled = true;
+            }
+
+            if (!sessionFilled) {
                 const separator = destinationUrl.includes('?') ? '&' : '?';
                 destinationUrl = `${destinationUrl}${separator}sessionId=${encodeURIComponent(sessionId)}`;
             }

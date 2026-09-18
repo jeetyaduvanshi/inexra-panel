@@ -932,7 +932,7 @@ export function EditProjectDialog({ project, open, onClose, onSuccess }: EditPro
                     <div className="flex items-center justify-between">
                         <div>
                             <DialogTitle className="text-base font-bold text-gray-800 uppercase">
-                                Edit Project
+                                Edit Project {project.projectId ? `(ID: ${project.projectId})` : ""}
                             </DialogTitle>
                             <p className="text-xs text-inexra-teal font-medium mt-0.5">{project.name}</p>
                         </div>

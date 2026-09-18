@@ -1,6 +1,10 @@
 import mongoose from 'mongoose';
 
 const ProjectSchema = new mongoose.Schema({
+    projectId: {
+        type: Number,
+        index: true,
+    },
     // ── Basic Information ─────────────────────────────────────
     projectName: {
         type: String,

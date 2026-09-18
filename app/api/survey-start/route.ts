@@ -24,29 +24,56 @@ function interpolateUrl(
     let url = templateUrl.trim();
     const { uid, sessionId, pid, sid } = params;
 
-    const hasUidPlaceholder = /\[(uid|rid|respondent_?id|id)\]|\{\{(uid|rid|respondent_?id|id)\}\}/i.test(url);
-    const hasSessionPlaceholder = /\[(session_?id|txid|tid)\]|\{\{(session_?id|txid|tid)\}\}/i.test(url);
+    let uidFilled = false;
+    let sessionFilled = false;
 
-    // Substitute placeholders
-    url = url.replace(/\[(uid|rid|respondent_?id|id)\]|\{\{(uid|rid|respondent_?id|id)\}\}/gi, encodeURIComponent(uid));
-    if (sessionId) {
-        url = url.replace(/\[(session_?id|txid|tid)\]|\{\{(session_?id|txid|tid)\}\}/gi, encodeURIComponent(sessionId));
+    // 1. Substitute placeholders
+    const uidPlaceholderRegex = /\[(uid|rid|pid|respondent_?id|panelist_?id|panellist_?id|sub_?id|id)\]|\{\{(uid|rid|pid|respondent_?id|panelist_?id|panellist_?id|sub_?id|id)\}\}/i;
+    if (uid && uidPlaceholderRegex.test(url)) {
+        url = url.replace(new RegExp(uidPlaceholderRegex.source, 'gi'), encodeURIComponent(uid));
+        uidFilled = true;
     }
+
+    if (sessionId) {
+        const sessionPlaceholderRegex = /\[(session_?id|txid|tid|transaction_?id)\]|\{\{(session_?id|txid|tid|transaction_?id)\}\}/i;
+        if (sessionPlaceholderRegex.test(url)) {
+            url = url.replace(new RegExp(sessionPlaceholderRegex.source, 'gi'), encodeURIComponent(sessionId));
+            sessionFilled = true;
+        }
+    }
+
     if (pid) {
-        url = url.replace(/\[(pid|project_?id)\]|\{\{(pid|project_?id)\}\}/gi, encodeURIComponent(pid));
+        url = url.replace(/\[(project_?id)\]|\{\{(project_?id)\}\}/gi, encodeURIComponent(pid));
     }
     if (sid) {
         url = url.replace(/\[(sid|supplier_?id)\]|\{\{(sid|supplier_?id)\}\}/gi, encodeURIComponent(sid));
     }
 
-    // Append uid if not substituted via placeholder
-    if (!hasUidPlaceholder && uid) {
+    // 2. Fill empty query parameters (e.g. &pid= or &uid=)
+    if (uid && !uidFilled) {
+        const emptyUidRegex = /([?&](?:uid|pid|rid|id|respondent_?id|panelist_?id|panellist_?id|sub_?id|user_?id))=(&|$)/i;
+        if (emptyUidRegex.test(url)) {
+            url = url.replace(emptyUidRegex, (_, p1, p2) => `${p1}=${encodeURIComponent(uid)}${p2}`);
+            uidFilled = true;
+        }
+    }
+
+    if (sessionId && !sessionFilled) {
+        const emptySessionRegex = /([?&](?:session_?id|txid|tid))=(&|$)/i;
+        if (emptySessionRegex.test(url)) {
+            url = url.replace(emptySessionRegex, (_, p1, p2) => `${p1}=${encodeURIComponent(sessionId)}${p2}`);
+            sessionFilled = true;
+        }
+    }
+
+    // 3. Fallback append uid if not substituted via placeholder or filled
+    if (uid && !uidFilled) {
         const separator = url.includes('?') ? '&' : '?';
         url = `${url}${separator}uid=${encodeURIComponent(uid)}`;
     }
 
-    // Append sessionId if provided and not substituted via placeholder
-    if (sessionId && !hasSessionPlaceholder) {
+    // 4. Fallback append sessionId if not substituted via placeholder or filled
+    if (sessionId && !sessionFilled) {
         const separator = url.includes('?') ? '&' : '?';
         url = `${url}${separator}sessionId=${encodeURIComponent(sessionId)}`;
     }
