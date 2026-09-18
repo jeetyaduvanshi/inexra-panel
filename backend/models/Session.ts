@@ -13,12 +13,14 @@ const SessionSchema = new mongoose.Schema({
     projectId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Project',
-        required: true,
+        required: false,
+        default: null,
     },
     supplierId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Supplier',
-        required: true,
+        required: false,
+        default: null,
     },
     respondentUid: {
         type: String,
@@ -30,6 +32,10 @@ const SessionSchema = new mongoose.Schema({
     ip: {
         type: String,
         default: 'unknown',
+    },
+    exitIp: {
+        type: String,
+        default: '',
     },
     userAgent: {
         type: String,

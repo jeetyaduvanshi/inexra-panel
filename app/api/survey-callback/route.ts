@@ -204,20 +204,25 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
                     supplierId: supplier._id,
                     respondentUid: uid || 'anonymous',
                     ip: clientIp || 'unknown',
+                    exitIp: clientIp || 'unknown',
                     status: 'started',
                     payout: 0,
                     entryTimestamp: new Date(),
                 });
             } else {
-                console.warn(`[SURVEY-CALLBACK] No session found for uid="${uid}", sessionId="${sessionId}", pid="${pid}"`);
-                return NextResponse.json(
-                    {
-                        success: false,
-                        error: `No survey session found for respondent '${uid || sessionId}'.`,
-                        notFound: true,
-                    },
-                    { status: 404 }
-                );
+                // If project/supplier is not pre-registered (e.g. direct client test URL with &pid=TEST1),
+                // auto-create the session so it is ALWAYS recorded and visible on the dashboard!
+                session = new Session({
+                    sessionId: sessionId || crypto.randomUUID(),
+                    projectId: project?._id || null,
+                    supplierId: supplier?._id || null,
+                    respondentUid: uid || 'anonymous',
+                    ip: clientIp || 'unknown',
+                    exitIp: clientIp || 'unknown',
+                    status: 'started',
+                    payout: 0,
+                    entryTimestamp: new Date(),
+                });
             }
         }
 
@@ -264,6 +269,7 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
                 supplierId: session.supplierId,
                 respondentUid: uid,
                 ip: clientIp || session.ip || 'unknown',
+                exitIp: clientIp || session.ip || 'unknown',
                 status: normalizedStatus,
                 payout: normalizedStatus === 'complete' ? (supplier?.cpi || 0) : 0,
                 entryTimestamp: new Date(),
@@ -279,6 +285,7 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
             session.status = normalizedStatus;
             session.payout = payout;
             session.exitTimestamp = new Date();
+            session.exitIp = clientIp || session.ip || 'unknown';
             if (clientIp && (!session.ip || session.ip === 'unknown')) {
                 session.ip = clientIp;
             }
