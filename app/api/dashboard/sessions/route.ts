@@ -99,7 +99,12 @@ export async function GET(req: Request) {
 
             const formatTime = (d: Date | null) => {
                 if (!d || isNaN(d.getTime())) return '-';
-                return d.toLocaleTimeString('en-US', { hour12: false }); // HH:MM:SS
+                return d.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true,
+                }); // e.g. "04:10:15 PM"
             };
 
             const statusDisplayMap: Record<string, string> = {

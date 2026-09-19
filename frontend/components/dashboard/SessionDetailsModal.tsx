@@ -44,6 +44,24 @@ export interface SessionRow {
     country: string;
 }
 
+export function formatTo12Hour(timeStr: string): string {
+    if (!timeStr || timeStr === '-' || timeStr === 'N/A') return '-';
+    if (/am|pm/i.test(timeStr)) return timeStr;
+    const parts = timeStr.trim().split(':');
+    if (parts.length >= 2) {
+        let hour = parseInt(parts[0], 10);
+        const minute = parts[1];
+        const second = parts[2] ? `:${parts[2]}` : '';
+        if (isNaN(hour)) return timeStr;
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        hour = hour % 12;
+        hour = hour ? hour : 12;
+        const hourStr = hour < 10 ? `0${hour}` : `${hour}`;
+        return `${hourStr}:${minute}${second} ${ampm}`;
+    }
+    return timeStr;
+}
+
 interface SessionDetailsModalProps {
     open: boolean;
     onClose: () => void;
@@ -140,8 +158,8 @@ export function SessionDetailsModal({
             `"${r.client.replace(/"/g, '""')}"`,
             `"${r.startIp}"`,
             `"${r.endIp}"`,
-            `"${r.startTime}"`,
-            `"${r.endTime}"`,
+            `"${formatTo12Hour(r.startTime)}"`,
+            `"${formatTo12Hour(r.endTime)}"`,
             `"${r.startDate}"`,
             `"${r.endDate}"`,
             `"${r.refId}"`,
@@ -278,8 +296,8 @@ export function SessionDetailsModal({
                                     <TableHead className="w-[130px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">CLIENT</TableHead>
                                     <TableHead className="w-[120px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">START IP</TableHead>
                                     <TableHead className="w-[120px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">END IP</TableHead>
-                                    <TableHead className="w-[90px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">START TIME</TableHead>
-                                    <TableHead className="w-[90px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">END TIME</TableHead>
+                                    <TableHead className="w-[110px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3 whitespace-nowrap">START TIME</TableHead>
+                                    <TableHead className="w-[110px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3 whitespace-nowrap">END TIME</TableHead>
                                     <TableHead className="w-[95px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">START DATE</TableHead>
                                     <TableHead className="w-[95px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">END DATE</TableHead>
                                     <TableHead className="w-[110px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">REF ID</TableHead>
@@ -311,8 +329,8 @@ export function SessionDetailsModal({
                                             </TableCell>
                                             <TableCell className="font-mono text-[11px] text-gray-600 py-3">{row.startIp}</TableCell>
                                             <TableCell className="font-mono text-[11px] text-gray-600 py-3">{row.endIp}</TableCell>
-                                            <TableCell className="text-gray-600 py-3">{row.startTime}</TableCell>
-                                            <TableCell className="text-gray-600 py-3">{row.endTime}</TableCell>
+                                            <TableCell className="text-gray-600 py-3 whitespace-nowrap font-mono text-[11px]">{formatTo12Hour(row.startTime)}</TableCell>
+                                            <TableCell className="text-gray-600 py-3 whitespace-nowrap font-mono text-[11px]">{formatTo12Hour(row.endTime)}</TableCell>
                                             <TableCell className="text-gray-600 py-3">{row.startDate}</TableCell>
                                             <TableCell className="text-gray-600 py-3">{row.endDate}</TableCell>
                                             <TableCell className="font-mono text-[11px] text-gray-500 py-3 max-w-[110px] truncate" title={row.refId}>
