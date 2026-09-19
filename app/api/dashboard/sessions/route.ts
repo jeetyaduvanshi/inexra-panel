@@ -94,17 +94,18 @@ export async function GET(req: Request) {
 
             const formatDate = (d: Date | null) => {
                 if (!d || isNaN(d.getTime())) return '-';
-                return d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+                return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD (IST)
             };
 
             const formatTime = (d: Date | null) => {
                 if (!d || isNaN(d.getTime())) return '-';
                 return d.toLocaleTimeString('en-US', {
+                    timeZone: 'Asia/Kolkata',
                     hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit',
                     hour12: true,
-                }); // e.g. "04:10:15 PM"
+                }); // e.g. "10:10:15 PM" (IST)
             };
 
             const statusDisplayMap: Record<string, string> = {

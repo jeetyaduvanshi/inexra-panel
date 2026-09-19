@@ -146,7 +146,7 @@ export function SessionDetailsModal({
         if (filtered.length === 0) return;
         const headers = [
             "SN", "ID", "SUPLIER ID", "SUPLIER NAME", "OUR PO", "CLIENT",
-            "START IP", "END IP", "START TIME", "END TIME", "START DATE", "END DATE",
+            "START IP", "END IP", "START TIME (IST)", "END TIME (IST)", "START DATE (IST)", "END DATE (IST)",
             "REF ID", "UID", "LOI", "STATUS", "COUNTRY"
         ];
         const rows = filtered.map((r, i) => [
@@ -296,8 +296,8 @@ export function SessionDetailsModal({
                                     <TableHead className="w-[130px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">CLIENT</TableHead>
                                     <TableHead className="w-[120px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">START IP</TableHead>
                                     <TableHead className="w-[120px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">END IP</TableHead>
-                                    <TableHead className="w-[110px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3 whitespace-nowrap">START TIME</TableHead>
-                                    <TableHead className="w-[110px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3 whitespace-nowrap">END TIME</TableHead>
+                                    <TableHead className="w-[125px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3 whitespace-nowrap">START TIME (IST)</TableHead>
+                                    <TableHead className="w-[125px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3 whitespace-nowrap">END TIME (IST)</TableHead>
                                     <TableHead className="w-[95px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">START DATE</TableHead>
                                     <TableHead className="w-[95px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">END DATE</TableHead>
                                     <TableHead className="w-[110px] font-bold text-[11px] text-gray-600 uppercase tracking-wider py-3">REF ID</TableHead>
