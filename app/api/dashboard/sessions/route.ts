@@ -43,9 +43,7 @@ export async function GET(req: Request) {
         const nowIst = new Date(now.getTime() + istOffsetMs);
 
         if (periodParam === 'today') {
-            const todayIst = new Date(Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), nowIst.getUTCDate()) - istOffsetMs);
-            const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-            const todayStart = new Date(Math.min(todayIst.getTime(), todayUtc.getTime()));
+            const todayStart = new Date(Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), nowIst.getUTCDate()) - istOffsetMs);
 
             query.$or = [
                 { exitTimestamp: { $gte: todayStart } },
@@ -53,9 +51,7 @@ export async function GET(req: Request) {
                 { createdAt: { $gte: todayStart } },
             ];
         } else if (periodParam === 'month') {
-            const monthIst = new Date(Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), 1) - istOffsetMs);
-            const monthUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-            const monthStart = new Date(Math.min(monthIst.getTime(), monthUtc.getTime()));
+            const monthStart = new Date(Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), 1) - istOffsetMs);
 
             query.$or = [
                 { exitTimestamp: { $gte: monthStart } },

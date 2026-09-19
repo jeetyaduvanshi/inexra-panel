@@ -36,16 +36,11 @@ export async function GET() {
         await dbConnect();
 
         const now = new Date();
-        // Calculate today's start in both UTC and IST (UTC+5:30)
+        // Calculate today and month start based on Indian Standard Time (IST - UTC+5:30)
         const istOffsetMs = 5.5 * 60 * 60 * 1000;
         const nowIst = new Date(now.getTime() + istOffsetMs);
-        const todayIst = new Date(Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), nowIst.getUTCDate()) - istOffsetMs);
-        const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-        const todayStart = new Date(Math.min(todayIst.getTime(), todayUtc.getTime()));
-
-        const monthIst = new Date(Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), 1) - istOffsetMs);
-        const monthUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-        const monthStart = new Date(Math.min(monthIst.getTime(), monthUtc.getTime()));
+        const todayStart = new Date(Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), nowIst.getUTCDate()) - istOffsetMs);
+        const monthStart = new Date(Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), 1) - istOffsetMs);
 
         const [today, month] = await Promise.all([
             countsSince(todayStart),
