@@ -24,7 +24,6 @@ const navItems = [
     { label: "Vendors", icon: Store, href: "/vendors" },
     { label: "Links", icon: LinkIcon, href: "/links" },
     { label: "Client Api Data", icon: Database, href: "/client-api-data" },
-    { label: "Zampila", icon: Layers, href: "/zampila" },
     { label: "All Research", icon: FlaskConical, href: "/all-research" },
 ];
 
