@@ -12,7 +12,8 @@ import {
     Link as LinkIcon,
     LogOut,
     Database,
-    Layers
+    Layers,
+    FlaskConical
 } from "lucide-react";
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
     { label: "Links", icon: LinkIcon, href: "/links" },
     { label: "Client Api Data", icon: Database, href: "/client-api-data" },
     { label: "Zampila", icon: Layers, href: "/zampila" },
+    { label: "All Research", icon: FlaskConical, href: "/all-research" },
 ];
 
 export function Header() {
