@@ -185,9 +185,9 @@ function SuppliersTab({ project }: { project: Project }) {
     const [loading, setLoading]                         = useState(false);
     const [showAddSupplier, setShowAddSupplier]         = useState(false);
     const [newSupplierName, setNewSupplierName]         = useState("");
-    const [newSupplierLink, setNewSupplierLink]         = useState("");
-    const [newSupplierCpi, setNewSupplierCpi]           = useState("");
-    const [newSupplierReqComp, setNewSupplierReqComp]   = useState("");
+    const [newSupplierLink, setNewSupplierLink]         = useState(project.surveyLink || "");
+    const [newSupplierCpi, setNewSupplierCpi]           = useState(project.cpi ? String(project.cpi) : "");
+    const [newSupplierReqComp, setNewSupplierReqComp]   = useState(project.quota ? String(project.quota) : "");
     const [newSupplierMaxRedir, setNewSupplierMaxRedir] = useState("500000");
     const [addingSupplier, setAddingSupplier]           = useState(false);
     const [copiedKey, setCopiedKey]                     = useState<string | null>(null);
@@ -257,9 +257,9 @@ function SuppliersTab({ project }: { project: Project }) {
             if (res.ok && data.success) {
                 toast.success("Supplier added successfully with auto-generated links!");
                 setNewSupplierName("");
-                setNewSupplierLink("");
-                setNewSupplierCpi("");
-                setNewSupplierReqComp("");
+                setNewSupplierLink(project.surveyLink || "");
+                setNewSupplierCpi(project.cpi ? String(project.cpi) : "");
+                setNewSupplierReqComp(project.quota ? String(project.quota) : "");
                 setNewSupplierMaxRedir("500000");
                 setShowAddSupplier(false);
                 fetchSuppliers();
@@ -508,7 +508,7 @@ function SuppliersTab({ project }: { project: Project }) {
                                 };
 
                                 const callbackUrl = (status: string) => `${baseUrl}/api/survey-callback?uid=[uid]&pid=${encodeURIComponent(project.id)}&status=${status}&redirect=true`;
-                                const liveSurveyUrl = sanitizePanelLink(sup.surveyLink, `${baseUrl}/api/s/${sup.trackingSlug}?uid=[uid]`);
+                                const liveSurveyUrl = sanitizePanelLink(sup.surveyLink, `${baseUrl}/api/s/${sup.trackingSlug}?uid=`).replace(/\?uid=\[uid\]$/, '?uid=').replace(/&uid=\[uid\]$/, '&uid=');
                                 const testSurveyUrl = sanitizePanelLink(sup.testLink, `${baseUrl}/api/s/${sup.trackingSlug}?uid=TEST_USER`);
                                 const completeUrl   = sanitizePanelLink(sup.completionUrl, callbackUrl('complete'));
                                 const terminateUrl  = sanitizePanelLink(sup.terminateUrl, callbackUrl('terminate'));

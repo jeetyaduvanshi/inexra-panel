@@ -53,10 +53,39 @@ export const ALL_LANGUAGES = [
 ];
 
 export const ALL_CLIENTS = [
-    "Link Information Technology", "ORG", "Azure Knowledge corporation", "Panel Sights", "Mind Force Research", "Track opinion",
-    "Zampila", "Divergent Insight", "SPER Market Research", "Global Survey", "Krea", "Greenland Market Research", "Question Lab",
-    "Probity Research", "Mind Forest", "Datanal Services", "Progresso Research", "TNB Survey - Walk Samples", "Market Mirror",
-    "Epitome Research", "Inexra Internal", "Client X",
+    // ── Key Clients (regular projects) ─────────────────────────────
+    "All Research",
+    "ARS - Alrestion",
+    "dataction.eu",
+    "Epitome Research",
+    "GRM",
+    "Pollact.in",
+    "Research Cart",
+    "Talk Online Panel",
+    "Toluna",
+    // ── Other Clients ───────────────────────────────────────────────
+    "Azure Knowledge corporation",
+    "Client X",
+    "Datanal Services",
+    "Divergent Insight",
+
+    "Global Survey",
+    "Greenland Market Research",
+    "Inexra Internal",
+    "Krea",
+    "Link Information Technology",
+    "Market Mirror",
+    "Mind Force Research",
+    "Mind Forest",
+    "ORG",
+    "Panel Sights",
+    "Probity Research",
+    "Progresso Research",
+    "Question Lab",
+    "SPER Market Research",
+    "TNB Survey - Walk Samples",
+    "Track opinion",
+    "Zampila",
 ];
 
 export const ALL_SELF_PARENTS = [

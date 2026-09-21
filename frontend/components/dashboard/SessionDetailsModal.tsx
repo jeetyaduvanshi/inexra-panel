@@ -310,10 +310,19 @@ export function SessionDetailsModal({
                             <TableBody>
                                 {filtered.map((row, idx) => {
                                     const isUidCopied = copiedUid === row.uid;
+                                    // S2S = 0s LOI AND uid is literal placeholder [uid] (never substituted)
+                                    // Legitimate fast exits (quota full in seconds) with real UIDs show normally
+                                    const isUnfilledUid = row.uid === '[uid]' || row.uid === '%5Buid%5D' || /^\[.+\]$/.test(row.uid);
+                                    const isS2S = row.loi === '0s' && isUnfilledUid;
                                     return (
                                         <TableRow
                                             key={row.fullId || `${row.uid}-${idx}`}
-                                            className="hover:bg-blue-50/30 transition-colors border-b border-gray-100 text-xs text-gray-700"
+                                            className={cn(
+                                                "transition-colors border-b border-gray-100 text-xs text-gray-700",
+                                                isS2S
+                                                    ? "bg-amber-50/60 hover:bg-amber-100/60"
+                                                    : "hover:bg-blue-50/30"
+                                            )}
                                         >
                                             <TableCell className="font-semibold text-gray-500 py-3 pl-4">{row.sn}</TableCell>
                                             <TableCell className="font-mono text-gray-600 py-3">{row.id}</TableCell>
@@ -358,7 +367,18 @@ export function SessionDetailsModal({
                                                 </div>
                                             </TableCell>
 
-                                            <TableCell className="font-medium text-gray-600 py-3">{row.loi}</TableCell>
+                                            <TableCell className="py-3">
+                                                {isS2S ? (
+                                                    <span
+                                                        title="Direct S2S callback — respondent did not enter via panel Survey Entry URL. LOI cannot be measured."
+                                                        className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 border border-amber-300 text-[10px] font-bold px-2 py-0.5 rounded cursor-help"
+                                                    >
+                                                        ⚠ S2S
+                                                    </span>
+                                                ) : (
+                                                    <span className="font-medium text-gray-600">{row.loi}</span>
+                                                )}
+                                            </TableCell>
                                             <TableCell className="py-3">
                                                 <Badge
                                                     variant="outline"
