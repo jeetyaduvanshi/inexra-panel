@@ -227,10 +227,24 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
         }
 
         // 5. Idempotency & Final-Status Guard
-        const isTestUid = uid === '[uid]' || uid === '%5Buid%5D' || uid === 'TEST_USER' || uid.includes('[') || uid.includes(']');
+        const isTestUid = uid === 'TEST_USER';
+        // Check if UID is a placeholder (e.g. [uid], %5Buid%5D)
+        const isPlaceholderUid = uid === '[uid]' || uid === '%5Buid%5D' || (/^\[.+\]$/.test(uid) && uid !== 'TEST_USER');
+
+        // Check Length of Interview (LOI)
+        // If the respondent actually spent time on the survey (> 0s elapsed since entry),
+        // they are a real respondent who went through the panel, even if their UID was sent as [uid].
+        // Only if LOI is 0s (entryTimestamp == exitTimestamp or instant callback) is it considered a fake direct S2S ping.
+        const entryTime = session?.entryTimestamp ? new Date(session.entryTimestamp).getTime() : 0;
+        const nowMs = Date.now();
+        const loiSeconds = entryTime > 0 ? Math.floor((nowMs - entryTime) / 1000) : 0;
+        const hasRealLoi = loiSeconds > 0;
+
+        // True Direct S2S = placeholder UID AND 0s LOI (no real interview took place)
+        const isDirectS2S = isPlaceholderUid && !hasRealLoi;
         const previousStatus = session.status;
         const FINAL_STATUSES = ['complete', 'disqualified', 'quota_full', 'security', 'drop'];
-        const isAlreadyFinal = !isTestUid && FINAL_STATUSES.includes(previousStatus);
+        const isAlreadyFinal = !isTestUid && !isDirectS2S && FINAL_STATUSES.includes(previousStatus);
 
         if (isAlreadyFinal) {
             console.log(
@@ -262,7 +276,12 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
         }
 
         // 6. Update or Create Session Record
-        if (isTestUid && previousStatus !== 'started') {
+        // S2S entries ([uid] literal with 0s LOI): force status to 'drop' — not a real respondent
+        // Respondents with real LOI (> 0s): keep normalizedStatus (e.g. complete)
+        const effectiveStatus = isDirectS2S ? 'drop' : normalizedStatus;
+
+        if ((isTestUid || isDirectS2S) && previousStatus !== 'started') {
+            // Always create a fresh session for test/S2S UIDs (no idempotency)
             session = new Session({
                 sessionId: crypto.randomUUID(),
                 projectId: session.projectId,
@@ -270,19 +289,19 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
                 respondentUid: uid,
                 ip: clientIp || session.ip || 'unknown',
                 exitIp: clientIp || session.ip || 'unknown',
-                status: normalizedStatus,
-                payout: normalizedStatus === 'complete' ? (supplier?.cpi || 0) : 0,
+                status: effectiveStatus,
+                payout: 0, // No payout for test/S2S
                 entryTimestamp: new Date(),
                 exitTimestamp: new Date(),
             });
             await session.save();
         } else {
             let payout = 0;
-            if (normalizedStatus === 'complete') {
+            if (effectiveStatus === 'complete') {
                 payout = supplier?.cpi || session.payout || 0;
             }
 
-            session.status = normalizedStatus;
+            session.status = effectiveStatus;
             session.payout = payout;
             session.exitTimestamp = new Date();
             session.exitIp = clientIp || session.ip || 'unknown';
@@ -293,43 +312,50 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
         }
 
         // 7. Atomically Update Metric Counters on Supplier & Project
-        const supplierInc: Record<string, number> = {};
-        const projectInc: Record<string, number> = {};
+        // ⚠ SKIP counters for Direct S2S (uid=[uid] literal with 0s LOI) — not a real respondent
+        if (isDirectS2S) {
+            console.log(
+                `[SURVEY-CALLBACK] ${new Date().toISOString()} | S2S-SKIPPED: uid=${uid} sent literal placeholder with 0s LOI — counters NOT incremented. status=${normalizedStatus}`
+            );
+        } else {
+            const supplierInc: Record<string, number> = {};
+            const projectInc: Record<string, number> = {};
 
-        switch (normalizedStatus) {
-            case 'complete':
-                supplierInc.completes = 1;
-                projectInc.completes = 1;
-                break;
-            case 'disqualified':
-                supplierInc.disqualified = 1;
-                projectInc.disqualify = 1;
-                break;
-            case 'quota_full':
-                supplierInc.quotaFull = 1;
-                projectInc.quotaFull = 1;
-                break;
-            case 'security':
-                supplierInc.securityTerm = 1;
-                projectInc.securityTerm = 1;
-                break;
-            case 'drop':
-                supplierInc.drop = 1;
-                projectInc.drop = 1;
-                break;
+            switch (effectiveStatus) {
+                case 'complete':
+                    supplierInc.completes = 1;
+                    projectInc.completes = 1;
+                    break;
+                case 'disqualified':
+                    supplierInc.disqualified = 1;
+                    projectInc.disqualify = 1;
+                    break;
+                case 'quota_full':
+                    supplierInc.quotaFull = 1;
+                    projectInc.quotaFull = 1;
+                    break;
+                case 'security':
+                    supplierInc.securityTerm = 1;
+                    projectInc.securityTerm = 1;
+                    break;
+                case 'drop':
+                    supplierInc.drop = 1;
+                    projectInc.drop = 1;
+                    break;
+            }
+
+            const updatePromises: Promise<unknown>[] = [];
+
+            if (supplier && Object.keys(supplierInc).length > 0) {
+                updatePromises.push(Supplier.findByIdAndUpdate(supplier._id, { $inc: supplierInc }));
+            }
+
+            if (project && Object.keys(projectInc).length > 0) {
+                updatePromises.push(Project.findByIdAndUpdate(project._id, { $inc: projectInc }));
+            }
+
+            await Promise.all(updatePromises);
         }
-
-        const updatePromises: Promise<unknown>[] = [];
-
-        if (supplier && Object.keys(supplierInc).length > 0) {
-            updatePromises.push(Supplier.findByIdAndUpdate(supplier._id, { $inc: supplierInc }));
-        }
-
-        if (project && Object.keys(projectInc).length > 0) {
-            updatePromises.push(Project.findByIdAndUpdate(project._id, { $inc: projectInc }));
-        }
-
-        await Promise.all(updatePromises);
 
         console.log(
             `[SURVEY-CALLBACK] ${new Date().toISOString()} | OK: sessionId=${session.sessionId}, uid=${session.respondentUid}, ${previousStatus} -> ${normalizedStatus}, supplier=${ supplier?._id}, project=${project?._id}`
