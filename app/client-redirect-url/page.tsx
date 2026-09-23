@@ -38,6 +38,14 @@ const STATUS_CONFIG: Record<string, { title: string; message: string }> = {
         title: 'SECURITY TERMINATE',
         message: 'Security terminate',
     },
+    drop: {
+        title: 'PROJECT DISQUALIFY',
+        message: 'Project disqualified',
+    },
+    error: {
+        title: 'SECURITY TERMINATE',
+        message: 'Security terminate',
+    },
 };
 
 function RedirectContent() {
@@ -51,6 +59,12 @@ function RedirectContent() {
     const ipParam = (searchParams.get('ip') || '').trim();
 
     const [ipAddress, setIpAddress] = useState<string>(ipParam);
+
+    useEffect(() => {
+        if (ipParam && ipParam !== 'unknown') {
+            setIpAddress(ipParam);
+        }
+    }, [ipParam]);
 
     const normalizedKey = statusParam.toLowerCase();
     const config = STATUS_CONFIG[normalizedKey] || {

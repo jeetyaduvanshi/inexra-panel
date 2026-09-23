@@ -36,9 +36,38 @@ const STATUS_MAP: Record<string, string> = {
     '2': 'disqualified',
     '3': 'quota_full',
     '4': 'security',
+    'complete': 'complete',
+    'completed': 'complete',
+    'terminate': 'disqualified',
+    'terminated': 'disqualified',
+    'disqualify': 'disqualified',
+    'disqualified': 'disqualified',
+    'quota_full': 'quota_full',
+    'quotafull': 'quota_full',
     'security': 'security',
     'security_terminate': 'security',
 };
+
+/**
+ * Builds the redirect URL to the traditional INEXRA client redirect result page
+ */
+function buildClientRedirect(params: {
+    baseUrl: string;
+    status: string;
+    uid?: string;
+    sessionId?: string;
+    sid?: string;
+    ip?: string;
+}): NextResponse {
+    const url = new URL('/client-redirect-url', params.baseUrl || 'http://localhost:3000');
+    url.searchParams.set('recorded', '1');
+    url.searchParams.set('status', params.status);
+    if (params.uid) url.searchParams.set('uid', params.uid);
+    if (params.sessionId) url.searchParams.set('sessionId', params.sessionId);
+    if (params.sid) url.searchParams.set('sid', params.sid);
+    if (params.ip) url.searchParams.set('ip', params.ip);
+    return NextResponse.redirect(url, 302);
+}
 
 /**
  * GET — All Research Callback Handler
@@ -53,20 +82,27 @@ const STATUS_MAP: Record<string, string> = {
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status') || '';
-    const txid = searchParams.get('uid') || searchParams.get('UID') || '';
+    const txid = searchParams.get('uid') || searchParams.get('UID') || searchParams.get('txid') || '';
     const receivedHash = searchParams.get('hash') || searchParams.get('Hash') || '';
     const baseUrl = getBaseUrl(req);
 
-    // Determine the mapped status
-    const mappedStatus = STATUS_MAP[status] || 'disqualified';
+    // Extract real client IP from incoming request
+    const forwarded = req.headers.get('x-forwarded-for');
+    const realIp = req.headers.get('x-real-ip');
+    const clientIp = (forwarded ? forwarded.split(',')[0].trim() : realIp) || '';
 
-    // Build redirect URLs for respondent
-    const successRedirect = `${baseUrl}/survey-complete?status=${mappedStatus}`;
-    const errorRedirect = `${baseUrl}/survey-complete?status=error`;
+    // Determine the mapped status
+    const mappedStatus = STATUS_MAP[status] || (status ? status.toLowerCase() : 'disqualified');
 
     if (!txid) {
         console.warn('[AR CALLBACK] Missing uid/txid in callback');
-        return NextResponse.redirect(errorRedirect);
+        return buildClientRedirect({
+            baseUrl,
+            status: mappedStatus,
+            uid: 'unknown',
+            sid: 'VM',
+            ip: clientIp,
+        });
     }
 
     try {
@@ -78,26 +114,47 @@ export async function GET(req: Request) {
             const isValid = validateIncomingHash(fullUrl, receivedHash);
             if (!isValid) {
                 console.warn(`[AR CALLBACK] INVALID HASH — txid=${txid} receivedHash=${receivedHash}`);
-                // Log but don't block — some integrations may not send hash initially
-                // Uncomment the next line to enforce strict hash validation:
-                // return NextResponse.redirect(errorRedirect);
             } else {
                 console.log(`[AR CALLBACK] Hash validated OK — txid=${txid}`);
             }
         }
 
-        // Find transaction record
-        const link = await GeneratedLink.findOne({ txid, vendor: 'all-research' });
+        // Find transaction record (by txid)
+        let link = await GeneratedLink.findOne({ txid, vendor: 'all-research' });
+        if (!link) {
+            link = await GeneratedLink.findOne({ txid });
+        }
+
         if (!link) {
             console.warn(`[AR CALLBACK] Transaction not found — txid=${txid}`);
-            return NextResponse.redirect(errorRedirect);
+            return buildClientRedirect({
+                baseUrl,
+                status: mappedStatus,
+                uid: txid,
+                sessionId: txid,
+                sid: 'VM',
+                ip: clientIp,
+            });
         }
+
+        // Fetch survey to get CPI and identifiers
+        const survey = await AllResearchSurvey.findOne({ surveyId: link.surveyId });
+        const respondentUid = link.uid || txid;
+        const projectSid = survey?.surveyCode || survey?.surveyId || link.surveyId || 'VM';
+        const resolvedIp = clientIp || (link.ip && link.ip !== 'unknown' && link.ip !== 'generated' ? link.ip : '');
 
         // Idempotency: skip if already in a final state
         const finalStatuses = ['complete', 'disqualified', 'quota_full', 'security', 'drop'];
         if (finalStatuses.includes(link.status)) {
             console.log(`[AR CALLBACK] Duplicate callback ignored — txid=${txid} currentStatus=${link.status}`);
-            return NextResponse.redirect(successRedirect);
+            return buildClientRedirect({
+                baseUrl,
+                status: link.status === 'drop' ? 'disqualified' : link.status,
+                uid: respondentUid,
+                sessionId: txid,
+                sid: projectSid,
+                ip: resolvedIp,
+            });
         }
 
         // Check Length of Interview (LOI)
@@ -107,14 +164,18 @@ export async function GET(req: Request) {
         // Any complete in 0 seconds is impossible -> force to 'drop'
         const effectiveStatus = (mappedStatus === 'complete' && loiSeconds <= 0) ? 'drop' : mappedStatus;
 
-        // Fetch survey to get CPI for payout
-        const survey = await AllResearchSurvey.findOne({ surveyId: link.surveyId });
+        // Payout calculation
         const payout = effectiveStatus === 'complete' ? (survey?.costPerInterview || link.payout || 0) : 0;
 
-        // Update GeneratedLink status
+        // Update GeneratedLink status and IP
         await GeneratedLink.findOneAndUpdate(
             { txid },
-            { status: effectiveStatus, payout, updatedAt: new Date() }
+            {
+                status: effectiveStatus,
+                payout,
+                updatedAt: new Date(),
+                ...(clientIp && clientIp !== 'unknown' ? { ip: clientIp } : {}),
+            }
         );
 
         // Update survey stats
@@ -140,18 +201,33 @@ export async function GET(req: Request) {
                 status: effectiveStatus,
                 exitTimestamp: new Date(),
                 payout,
+                ...(clientIp && clientIp !== 'unknown' ? { ip: clientIp } : {}),
             },
             { upsert: true }
         ).catch((err) => {
             console.warn('[AR CALLBACK] Session update non-fatal warning:', err.message);
         });
 
-        console.log(`[AR CALLBACK] txid=${txid} surveyId=${link.surveyId} status=${effectiveStatus} payout=${payout}`);
+        console.log(`[AR CALLBACK] txid=${txid} surveyId=${link.surveyId} status=${effectiveStatus} payout=${payout} respondentUid=${respondentUid}`);
 
-        return NextResponse.redirect(successRedirect);
+        return buildClientRedirect({
+            baseUrl,
+            status: effectiveStatus === 'drop' ? 'disqualified' : effectiveStatus,
+            uid: respondentUid,
+            sessionId: txid,
+            sid: projectSid,
+            ip: resolvedIp,
+        });
 
     } catch (error) {
         console.error('[AR CALLBACK ERROR]', error);
-        return NextResponse.redirect(errorRedirect);
+        return buildClientRedirect({
+            baseUrl,
+            status: mappedStatus || 'security',
+            uid: txid || 'unknown',
+            sessionId: txid || '',
+            sid: 'VM',
+            ip: clientIp,
+        });
     }
 }
