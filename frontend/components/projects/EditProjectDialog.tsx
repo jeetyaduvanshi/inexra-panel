@@ -278,7 +278,6 @@ function EditSupplierDialog({
                         <Input
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="Supplier Name"
                             className="h-9 text-xs"
                             required
                         />
@@ -303,7 +302,6 @@ function EditSupplierDialog({
                                 onChange={(e) => setLink(e.target.value)}
                                 onFocus={(e) => e.target.select()}
                                 onPaste={handlePaste}
-                                placeholder="https://client-survey.com/entry?pid=...&uid=[uid]"
                                 className={cn(
                                     "h-9 text-xs font-mono text-[11px] pr-8",
                                     link && !isValidHttpUrl(cleanUrlInput(link)) && "border-red-400 focus-visible:ring-red-400"
@@ -404,7 +402,7 @@ function SuppliersTab({ project }: { project: Project }) {
     const [loading, setLoading]                         = useState(false);
     const [showAddSupplier, setShowAddSupplier]         = useState(false);
     const [newSupplierName, setNewSupplierName]         = useState("");
-    const [newSupplierLink, setNewSupplierLink]         = useState(project.surveyLink || "");
+    const [newSupplierLink, setNewSupplierLink]         = useState("");
     const [newSupplierCpi, setNewSupplierCpi]           = useState(project.cpi ? String(project.cpi) : "");
     const [newSupplierReqComp, setNewSupplierReqComp]   = useState(project.quota ? String(project.quota) : "");
     const [newSupplierMaxRedir, setNewSupplierMaxRedir] = useState("500000");
@@ -491,7 +489,7 @@ function SuppliersTab({ project }: { project: Project }) {
             if (res.ok && data.success) {
                 toast.success("Supplier added successfully with auto-generated links!");
                 setNewSupplierName("");
-                setNewSupplierLink(project.surveyLink || "");
+                setNewSupplierLink("");
                 setNewSupplierCpi(project.cpi ? String(project.cpi) : "");
                 setNewSupplierReqComp(project.quota ? String(project.quota) : "");
                 setNewSupplierMaxRedir("500000");
@@ -608,7 +606,6 @@ function SuppliersTab({ project }: { project: Project }) {
                                 <Input
                                     value={newSupplierName}
                                     onChange={(e) => setNewSupplierName(e.target.value)}
-                                    placeholder="e.g. Cint, Lucid, PureSpectrum"
                                     className="h-8 text-xs bg-gray-50/50 focus:bg-white"
                                 />
                             </div>
@@ -617,15 +614,26 @@ function SuppliersTab({ project }: { project: Project }) {
                             <div className="md:col-span-8 space-y-1">
                                 <div className="flex items-center justify-between">
                                     <Label className="text-[11px] font-semibold text-gray-600">Original Survey Link *</Label>
-                                    {newSupplierLink && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setNewSupplierLink("")}
-                                            className="text-[10px] text-gray-400 hover:text-red-500 font-medium"
-                                        >
-                                            Clear Link
-                                        </button>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        {project.surveyLink && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setNewSupplierLink(project.surveyLink || "")}
+                                                className="text-[10px] text-inexra-teal hover:underline font-semibold"
+                                            >
+                                                Paste Project Link
+                                            </button>
+                                        )}
+                                        {newSupplierLink && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setNewSupplierLink("")}
+                                                className="text-[10px] text-gray-400 hover:text-red-500 font-medium"
+                                            >
+                                                Clear Link
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="relative">
                                     <Input
@@ -633,7 +641,6 @@ function SuppliersTab({ project }: { project: Project }) {
                                         onChange={(e) => setNewSupplierLink(e.target.value)}
                                         onFocus={(e) => e.target.select()}
                                         onPaste={handlePasteNewLink}
-                                        placeholder="https://client-survey.com/entry?pid=...&uid=[uid]"
                                         className={cn(
                                             "h-8 text-xs bg-gray-50/50 focus:bg-white font-mono text-[11px] pr-8",
                                             newSupplierLink && !isValidHttpUrl(cleanUrlInput(newSupplierLink)) && "border-red-300 focus-visible:ring-red-400"
