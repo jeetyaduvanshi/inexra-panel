@@ -16,8 +16,12 @@ export function proxy(request: NextRequest) {
         pathname.startsWith('/client-redirect-url') || // Zamplia callback redirect pages
         pathname.startsWith('/api/zamplia/callback') || // Zamplia callback API
         pathname.startsWith('/api/survey-callback') || // Survey callback API
+        pathname.startsWith('/api/all-research/callback') || // All Research callback API
+        pathname.startsWith('/survey-complete') || // Survey completion and exit result page
         pathname.startsWith('/_next') ||
-        pathname === '/favicon.ico';
+        pathname === '/favicon.ico' ||
+        pathname === '/icon.png' ||
+        pathname === '/apple-icon.png';
 
     // 2. Redirect logic
     if (isPublicPath) {
