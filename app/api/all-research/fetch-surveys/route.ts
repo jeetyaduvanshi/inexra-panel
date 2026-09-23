@@ -16,15 +16,23 @@ export async function GET() {
             }, { status: 500 });
         }
 
+        const headers: Record<string, string> = {
+            'supplierid': SUPPLIER_ID,
+            'token': TOKEN,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        };
+
+        const cookie = process.env.ALL_RESEARCH_COOKIE;
+        if (cookie) {
+            headers['Cookie'] = cookie;
+        }
+
         const response = await fetch(
             `${AR_API_BASE}/webservices/survey/send_supplier_data`,
             {
                 method: 'GET',
-                headers: {
-                    'Supplierid': SUPPLIER_ID,
-                    'token': TOKEN,
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 cache: 'no-store',
             }
         );
@@ -55,27 +63,29 @@ export async function GET() {
         const upserted: unknown[] = [];
         for (const s of surveys) {
             const doc = {
-                surveyId: String(s.survey_id ?? ''),
-                surveyCode: String(s.survey_code ?? ''),
-                surveyName: String(s.survey_name ?? ''),
-                surveyCountry: String(s.survey_country ?? ''),
-                surveyLanguage: String(s.survey_language ?? 'English'),
-                surveyCategory: String(s.survey_category ?? ''),
-                surveyCurrency: String(s.survey_currency ?? 'USD'),
+                surveyId: String(s.project_id ?? s.survey_id ?? ''),
+                surveyCode: String(s.project_code ?? s.survey_code ?? ''),
+                surveyName: String(s.project_name ?? s.survey_name ?? ''),
+                surveyCountry: String(s.country ?? s.survey_country ?? ''),
+                surveyLanguage: String(s.language ?? s.survey_language ?? 'English'),
+                surveyCategory: String(s.category ?? s.survey_category ?? ''),
+                surveyCurrency: String(s.currency ?? s.survey_currency ?? 'USD'),
                 audienceType: String(s.audience_type ?? ''),
-                incidenceRate: Number(s.incidence_rate ?? 0),
-                lengthOfInterview: Number(s.length_of_interview ?? 0),
-                costPerInterview: Number(s.cost_per_interview ?? 0),
-                completeNeeded: Number(s.complete_needed ?? 0),
-                liveClickQuota: Number(s.live_click_quota ?? 0),
-                testClickQuota: Number(s.test_click_quota ?? 0),
-                surveyStartDate: String(s.survey_start_date ?? ''),
-                surveyEndDate: String(s.survey_end_date ?? ''),
-                entryLiveUrl: String(s.entry_live_url ?? ''),
-                entryTestUrl: String(s.entry_test_url ?? ''),
+                incidenceRate: Number(s.project_ir ?? s.incidence_rate ?? 0),
+                lengthOfInterview: Number(s.project_loi ?? s.length_of_interview ?? 0),
+                costPerInterview: Number(s.cpi ?? s.cost_per_interview ?? 0),
+                completeNeeded: Number(s.quota ?? s.complete_needed ?? 0),
+                liveClickQuota: Number(s.live_quota ?? s.live_click_quota ?? 0),
+                testClickQuota: Number(s.test_quota ?? s.test_click_quota ?? 0),
+                surveyStartDate: String(s.project_start_date ?? s.survey_start_date ?? ''),
+                surveyEndDate: String(s.project_end_date ?? s.survey_end_date ?? ''),
+                entryLiveUrl: String(s.live_url ?? s.entry_live_url ?? ''),
+                entryTestUrl: String(s.test_url ?? s.entry_test_url ?? ''),
                 deviceType: String(s.device_type ?? 'Desktop,Mobile,Tablet'),
-                surveyStatus: String(s.survey_status ?? 'Live'),
-                collectsPii: String(s.collects_pii ?? 'No'),
+                surveyStatus: String(s.status ?? s.survey_status ?? 'Live'),
+                buyerId: String(s.buyer_id ?? ''),
+                targetSpec: String(s.target_spec ?? ''),
+                collectsPii: String(s.pii_collection ?? s.collects_pii ?? 'No'),
                 applicationDownload: String(s.application_download ?? 'No'),
                 facialCoding: String(s.facial_coding ?? 'No'),
                 qualifications: s.qualifications ?? [],

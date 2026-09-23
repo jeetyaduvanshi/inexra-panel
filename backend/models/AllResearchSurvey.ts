@@ -98,6 +98,14 @@ const AllResearchSurveySchema = new mongoose.Schema({
         type: String,
         default: 'Live',
     },
+    buyerId: {
+        type: String,
+        default: '',
+    },
+    targetSpec: {
+        type: String,
+        default: '',
+    },
 
     // Flags
     collectsPii: {
