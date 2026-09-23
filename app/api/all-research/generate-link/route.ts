@@ -5,29 +5,16 @@ import AllResearchSurvey from '@/backend/models/AllResearchSurvey';
 import GeneratedLink from '@/backend/models/GeneratedLink';
 import Session from '@/backend/models/Session';
 
-const HASH_SECRET = process.env.ALL_RESEARCH_HASH_SECRET || '';
-
 /**
- * Generates a SHA3-256 hash of (url + secretKey)
- * As per All Research Redirect URL Hashing Guide:
- * $hash = hash('sha3-256', $baseUrl . $secretKey);
- */
-function generateSHA3Hash(baseUrl: string, secretKey: string): string {
-    return crypto.createHash('sha3-256').update(baseUrl + secretKey).digest('hex');
-}
-
-/**
- * POST — Generate a hashed tracking link for a respondent
+ * POST — Generate a tracking link for a respondent
  *
  * Body: { surveyId: string, uid: string }
  *
  * Flow:
  * 1. Fetch survey from DB to get entry_live_url
  * 2. Replace [identifier] in URL with our unique txid
- * 3. Generate SHA3-256 hash of (fullUrl + HASH_SECRET)
- * 4. Append &hash=<value> to URL (hash must be LAST parameter)
- * 5. Save tracking record in GeneratedLink collection
- * 6. Return the final hashed URL
+ * 3. Save tracking record in GeneratedLink & Session collections
+ * 4. Return the clean respondent URL
  */
 export async function POST(req: Request) {
     try {
@@ -48,43 +35,29 @@ export async function POST(req: Request) {
                 error: 'uid (Respondent ID) is required',
             }, { status: 400 });
         }
-        if (!HASH_SECRET) {
-            return NextResponse.json({
-                success: false,
-                error: 'ALL_RESEARCH_HASH_SECRET is not configured',
-            }, { status: 500 });
-        }
 
-        // Fetch the survey to get the entry_live_url
+        // Fetch survey to get entryLiveUrl and CPI
         const survey = await AllResearchSurvey.findOne({ surveyId: String(surveyId) });
         if (!survey) {
             return NextResponse.json({
                 success: false,
-                error: `Survey ${surveyId} not found. Please fetch surveys first.`,
+                error: `Survey with ID ${surveyId} not found. Please refresh surveys.`,
             }, { status: 404 });
         }
 
         if (!survey.entryLiveUrl) {
             return NextResponse.json({
                 success: false,
-                error: 'This survey does not have an entry_live_url.',
+                error: 'This survey does not have an entry_live_url configured.',
             }, { status: 400 });
         }
 
         // Generate a unique transaction ID for this respondent
         const txid = crypto.randomUUID();
 
-        // Step 1: Replace [identifier] placeholder in the All Research URL with our txid
-        // All Research entry URL example:
-        // https://your_domain/project/supplier-auth?projectid=...&supplierid=...&uid=[identifier]
-        const baseUrl = survey.entryLiveUrl.replace(/\[identifier\]/gi, encodeURIComponent(txid));
-
-        // Step 2: Generate SHA3-256 hash
-        // Formula: hash('sha3-256', baseUrl . secretKey)
-        const hash = generateSHA3Hash(baseUrl, HASH_SECRET);
-
-        // Step 3: Append hash as the LAST parameter (required by All Research spec)
-        const finalUrl = `${baseUrl}&hash=${hash}`;
+        // Replace [identifier] placeholder in the All Research URL with our txid
+        // As confirmed by All Research team, clean URL without entry hash is accepted
+        const finalUrl = survey.entryLiveUrl.replace(/\[identifier\]/gi, encodeURIComponent(txid));
 
         // Step 4: Save tracking records
         const generatedLink = await GeneratedLink.create({

@@ -85,7 +85,7 @@ export function AllResearchLinkGenerator({ selectedSurveyId }: Props) {
                 <div>
                     <h2 className="text-lg font-semibold text-gray-900">Generate Respondent Link</h2>
                     <p className="text-xs text-gray-500 mt-0.5">
-                        Creates a SHA3-256 secured tracking URL for All Research surveys
+                        Creates a clean tracking URL for All Research surveys
                     </p>
                 </div>
                 {(generatedUrl || surveyId) && (
@@ -161,10 +161,10 @@ export function AllResearchLinkGenerator({ selectedSurveyId }: Props) {
                 <div className="mt-5 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-semibold text-emerald-800">
-                            ✅ Hashed Tracking URL Generated
+                            ✅ Respondent Tracking URL Generated
                         </span>
                         <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full font-mono">
-                            SHA3-256 Secured
+                            Clean Direct Link
                         </span>
                     </div>
 
@@ -204,7 +204,7 @@ export function AllResearchLinkGenerator({ selectedSurveyId }: Props) {
                     </div>
 
                     <p className="mt-2 text-xs text-emerald-700">
-                        Share this URL with your respondent. The <code className="bg-emerald-100 px-1 rounded">hash</code> parameter at the end ensures All Research validates the redirect.
+                        Share this clean tracking URL with your respondent. It embeds your unique transaction identifier (<code className="bg-emerald-100 px-1 rounded">uid</code>) directly.
                     </p>
                 </div>
             )}
