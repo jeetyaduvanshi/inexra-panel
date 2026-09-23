@@ -12,9 +12,9 @@ import { Badge } from "@/frontend/components/ui/badge";
 import { ScrollArea } from "@/frontend/components/ui/scroll-area";
 import {
     Loader2, Copy, Plus, ExternalLink, X, Check, ChevronDown, ChevronUp,
-    Trash2, Play, Pause, Link2, RefreshCw
+    Trash2, Play, Pause, Link2, RefreshCw, Pencil
 } from "lucide-react";
-import { cn } from "@/frontend/lib/utils";
+import { cn, cleanUrlInput, isValidHttpUrl } from "@/frontend/lib/utils";
 import { toast } from "@/frontend/lib/toast-store";
 import { AddProjectForm, type ProjectFormData } from "./AddProjectForm";
 import type { Project } from "./ProjectList";
@@ -178,6 +178,225 @@ function StatusTab({
     );
 }
 
+// ─── Edit Supplier Modal ────────────────────────────────────────────────────────
+
+function EditSupplierDialog({
+    supplier,
+    open,
+    onClose,
+    onSuccess,
+}: {
+    supplier: Supplier | null;
+    open: boolean;
+    onClose: () => void;
+    onSuccess: () => void;
+}) {
+    const [name, setName]         = useState("");
+    const [link, setLink]         = useState("");
+    const [cpi, setCpi]           = useState("");
+    const [reqComp, setReqComp]   = useState("");
+    const [maxRedir, setMaxRedir] = useState("");
+    const [status, setStatus]     = useState("active");
+    const [saving, setSaving]     = useState(false);
+
+    useEffect(() => {
+        if (supplier) {
+            setName(supplier.supplierName || "");
+            setLink(supplier.originalLink || "");
+            setCpi(supplier.cpi !== undefined ? String(supplier.cpi) : "");
+            setReqComp(supplier.requiredCompletes !== undefined ? String(supplier.requiredCompletes) : "");
+            setMaxRedir(supplier.maxRedirects !== undefined ? String(supplier.maxRedirects) : "500000");
+            setStatus(supplier.status || "active");
+        }
+    }, [supplier]);
+
+    if (!supplier) return null;
+
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        const text = e.clipboardData.getData("text");
+        if (text && (text.trim().startsWith("http://") || text.trim().startsWith("https://"))) {
+            e.preventDefault();
+            setLink(cleanUrlInput(text.trim()));
+        }
+    };
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name.trim()) {
+            toast.warning("Supplier name is required");
+            return;
+        }
+        const cleaned = cleanUrlInput(link);
+        if (!isValidHttpUrl(cleaned)) {
+            toast.error("Please enter a valid Destination Survey Link starting with http:// or https://");
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const res = await fetch("/api/suppliers", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: supplier._id,
+                    supplierName: name.trim(),
+                    originalLink: cleaned,
+                    cpi: parseFloat(cpi) || 0,
+                    requiredCompletes: parseInt(reqComp, 10) || 0,
+                    maxRedirects: parseInt(maxRedir, 10) || 500000,
+                    status,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast.success(`Supplier "${name}" updated successfully!`);
+                onSuccess();
+                onClose();
+            } else {
+                toast.error(data.error || "Failed to update supplier");
+            }
+        } catch {
+            toast.error("Network error while updating supplier");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+            <DialogContent className="max-w-lg bg-white p-6 rounded-xl shadow-2xl border border-gray-100">
+                <DialogHeader className="mb-4">
+                    <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                        <Pencil className="w-4 h-4 text-blue-600" />
+                        Edit Supplier: {supplier.supplierName}
+                    </DialogTitle>
+                </DialogHeader>
+
+                <form onSubmit={handleSave} className="space-y-4">
+                    <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-700">Supplier Name *</Label>
+                        <Input
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Supplier Name"
+                            className="h-9 text-xs"
+                            required
+                        />
+                    </div>
+
+                    <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-xs font-semibold text-gray-700">Original Destination Link *</Label>
+                            {link && (
+                                <button
+                                    type="button"
+                                    onClick={() => setLink("")}
+                                    className="text-[10px] text-gray-400 hover:text-red-500 font-medium"
+                                >
+                                    Clear Link
+                                </button>
+                            )}
+                        </div>
+                        <div className="relative">
+                            <Input
+                                value={link}
+                                onChange={(e) => setLink(e.target.value)}
+                                onFocus={(e) => e.target.select()}
+                                onPaste={handlePaste}
+                                placeholder="https://client-survey.com/entry?pid=...&uid=[uid]"
+                                className={cn(
+                                    "h-9 text-xs font-mono text-[11px] pr-8",
+                                    link && !isValidHttpUrl(cleanUrlInput(link)) && "border-red-400 focus-visible:ring-red-400"
+                                )}
+                                required
+                            />
+                            {link && (
+                                <button
+                                    type="button"
+                                    onClick={() => setLink("")}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                                    title="Clear link"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+                        </div>
+                        {link && !isValidHttpUrl(cleanUrlInput(link)) && (
+                            <p className="text-[10px] text-red-500 font-medium">
+                                ⚠️ Invalid URL. Must start with http:// or https:// and cannot contain duplicated prefixes.
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                            <Label className="text-xs font-semibold text-gray-700">CPI ($)</Label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={cpi}
+                                onChange={(e) => setCpi(e.target.value)}
+                                className="h-9 text-xs"
+                            />
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label className="text-xs font-semibold text-gray-700">Req Completes</Label>
+                            <Input
+                                type="number"
+                                min="0"
+                                value={reqComp}
+                                onChange={(e) => setReqComp(e.target.value)}
+                                placeholder="0 (Unlimited)"
+                                className="h-9 text-xs"
+                            />
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label className="text-xs font-semibold text-gray-700">Max Redirects</Label>
+                            <Input
+                                type="number"
+                                min="0"
+                                value={maxRedir}
+                                onChange={(e) => setMaxRedir(e.target.value)}
+                                className="h-9 text-xs"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={onClose}
+                            disabled={saving}
+                            className="h-8 text-xs text-gray-600"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            size="sm"
+                            disabled={saving}
+                            className="h-8 text-xs bg-inexra-teal hover:bg-teal-600 text-white font-semibold"
+                        >
+                            {saving ? (
+                                <>
+                                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Saving...
+                                </>
+                            ) : (
+                                "Save Changes"
+                            )}
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 // ─── Suppliers Tab ────────────────────────────────────────────────────────────
 
 function SuppliersTab({ project }: { project: Project }) {
@@ -193,6 +412,7 @@ function SuppliersTab({ project }: { project: Project }) {
     const [copiedKey, setCopiedKey]                     = useState<string | null>(null);
     const [expandedSuppliers, setExpandedSuppliers]     = useState<Record<string, boolean>>({});
     const [actionLoadingId, setActionLoadingId]         = useState<string | null>(null);
+    const [editingSupplier, setEditingSupplier]         = useState<Supplier | null>(null);
 
     const isMarketing = typeof window !== "undefined" &&
         (window.location.hostname === "inexraresearch.com" || window.location.hostname === "www.inexraresearch.com");
@@ -232,10 +452,24 @@ function SuppliersTab({ project }: { project: Project }) {
         fetchSuppliers();
     }, [project.id]);
 
+    const handlePasteNewLink = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        const text = e.clipboardData.getData("text");
+        if (text && (text.trim().startsWith("http://") || text.trim().startsWith("https://"))) {
+            e.preventDefault();
+            setNewSupplierLink(cleanUrlInput(text.trim()));
+        }
+    };
+
     const handleAddSupplier = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         if (!newSupplierName.trim() || !newSupplierLink.trim()) {
             toast.warning("Please fill in supplier name and original survey link");
+            return;
+        }
+
+        const cleanedLink = cleanUrlInput(newSupplierLink);
+        if (!isValidHttpUrl(cleanedLink)) {
+            toast.warning("Please enter a valid original survey link starting with http:// or https://");
             return;
         }
 
@@ -247,7 +481,7 @@ function SuppliersTab({ project }: { project: Project }) {
                 body   : JSON.stringify({
                     projectId         : project.id,
                     supplierName      : newSupplierName.trim(),
-                    originalLink      : newSupplierLink.trim(),
+                    originalLink      : cleanedLink,
                     cpi               : parseFloat(newSupplierCpi) || 0,
                     requiredCompletes : parseInt(newSupplierReqComp, 10) || 0,
                     maxRedirects      : parseInt(newSupplierMaxRedir, 10) || 500000,
@@ -381,13 +615,46 @@ function SuppliersTab({ project }: { project: Project }) {
 
                             {/* Original Survey Link */}
                             <div className="md:col-span-8 space-y-1">
-                                <Label className="text-[11px] font-semibold text-gray-600">Original Survey Link *</Label>
-                                <Input
-                                    value={newSupplierLink}
-                                    onChange={(e) => setNewSupplierLink(e.target.value)}
-                                    placeholder="https://client-survey.com/entry?pid=...&uid=[uid]"
-                                    className="h-8 text-xs bg-gray-50/50 focus:bg-white font-mono text-[11px]"
-                                />
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-[11px] font-semibold text-gray-600">Original Survey Link *</Label>
+                                    {newSupplierLink && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setNewSupplierLink("")}
+                                            className="text-[10px] text-gray-400 hover:text-red-500 font-medium"
+                                        >
+                                            Clear Link
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="relative">
+                                    <Input
+                                        value={newSupplierLink}
+                                        onChange={(e) => setNewSupplierLink(e.target.value)}
+                                        onFocus={(e) => e.target.select()}
+                                        onPaste={handlePasteNewLink}
+                                        placeholder="https://client-survey.com/entry?pid=...&uid=[uid]"
+                                        className={cn(
+                                            "h-8 text-xs bg-gray-50/50 focus:bg-white font-mono text-[11px] pr-8",
+                                            newSupplierLink && !isValidHttpUrl(cleanUrlInput(newSupplierLink)) && "border-red-300 focus-visible:ring-red-400"
+                                        )}
+                                    />
+                                    {newSupplierLink && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setNewSupplierLink("")}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                                            title="Clear input"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                                {newSupplierLink && !isValidHttpUrl(cleanUrlInput(newSupplierLink)) && (
+                                    <p className="text-[10px] text-red-500 font-medium">
+                                        ⚠️ Invalid URL. Must start with http:// or https:// and cannot contain duplicated prefixes.
+                                    </p>
+                                )}
                             </div>
 
                             {/* CPI */}
@@ -582,6 +849,17 @@ function SuppliersTab({ project }: { project: Project }) {
 
                                                 {/* Action buttons */}
                                                 <div className="flex items-center gap-1 ml-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => setEditingSupplier(sup)}
+                                                        className="h-7 px-2 text-[11px] font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                        title="Edit Supplier Details"
+                                                    >
+                                                        <Pencil className="w-3 h-3 mr-1" />
+                                                        Edit
+                                                    </Button>
+
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
@@ -884,19 +1162,36 @@ function SuppliersTab({ project }: { project: Project }) {
                                                 </div>
 
                                                 {/* Original Destination Link reference */}
-                                                <div className="pt-2 border-t border-gray-100 flex items-center gap-2 text-[11px] text-gray-500">
-                                                    <span className="font-semibold text-gray-600 flex-shrink-0">Destination:</span>
-                                                    <span className="truncate font-mono text-[10px] text-gray-600 bg-gray-50 px-2 py-0.5 rounded border">
-                                                        {sup.originalLink}
-                                                    </span>
-                                                    <button
+                                                <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+                                                    <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-2">
+                                                        <span className="font-semibold text-gray-600 flex-shrink-0">Destination:</span>
+                                                        <span className={cn(
+                                                            "truncate font-mono text-[10px] px-2 py-0.5 rounded border",
+                                                            isValidHttpUrl(sup.originalLink)
+                                                                ? "text-gray-600 bg-gray-50 border-gray-200"
+                                                                : "text-red-700 bg-red-50 border-red-300 font-semibold"
+                                                        )}>
+                                                            {sup.originalLink}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => copyToClipboard(sup.originalLink, `${sup._id}-orig`, "Destination URL")}
+                                                            className="hover:text-inexra-teal flex-shrink-0"
+                                                            title="Copy original link"
+                                                        >
+                                                            <Copy className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                    <Button
                                                         type="button"
-                                                        onClick={() => copyToClipboard(sup.originalLink, `${sup._id}-orig`, "Destination URL")}
-                                                        className="hover:text-inexra-teal flex-shrink-0"
-                                                        title="Copy original link"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setEditingSupplier(sup)}
+                                                        className="h-6 px-2 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 flex items-center gap-1 flex-shrink-0"
                                                     >
-                                                        <Copy className="w-3 h-3" />
-                                                    </button>
+                                                        <Pencil className="w-2.5 h-2.5" />
+                                                        Edit Link
+                                                    </Button>
                                                 </div>
                                             </div>
                                         )}
@@ -907,6 +1202,14 @@ function SuppliersTab({ project }: { project: Project }) {
                     )}
                 </div>
             </div>
+
+            {/* Edit Supplier Dialog */}
+            <EditSupplierDialog
+                supplier={editingSupplier}
+                open={!!editingSupplier}
+                onClose={() => setEditingSupplier(null)}
+                onSuccess={fetchSuppliers}
+            />
         </div>
     );
 }

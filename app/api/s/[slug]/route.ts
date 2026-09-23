@@ -5,7 +5,7 @@ import Project from '@/backend/models/Project';
 import Session from '@/backend/models/Session';
 import crypto from 'crypto';
 
-import { getBaseUrl } from '@/backend/lib/baseUrl';
+import { getBaseUrl, cleanUrlInput, isValidHttpUrl } from '@/backend/lib/baseUrl';
 
 export async function GET(
     request: Request,
@@ -118,6 +118,12 @@ export async function GET(
                 const separator = destinationUrl.includes('?') ? '&' : '?';
                 destinationUrl = `${destinationUrl}${separator}sessionId=${encodeURIComponent(sessionId)}`;
             }
+        }
+
+        destinationUrl = cleanUrlInput(destinationUrl);
+        if (!isValidHttpUrl(destinationUrl)) {
+            console.error(`[SLUG-REDIRECT] Malformed destination URL for slug=${slug}: ${destinationUrl}`);
+            return new NextResponse(`Survey destination link is misconfigured: ${destinationUrl}`, { status: 400 });
         }
 
         console.log(`[SLUG-REDIRECT] ${new Date().toISOString()} | slug=${slug}, uid=${uid}, sessionId=${sessionId}, dest=${destinationUrl}`);
