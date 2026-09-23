@@ -34,6 +34,16 @@ const STATUS_CONFIG = {
         textColor: 'text-red-800',
         badgeColor: 'bg-red-100 text-red-700',
     },
+    security: {
+        emoji: '🛡️',
+        title: 'Security Terminate',
+        message: 'Your response could not be verified or was terminated due to security checks.',
+        color: 'from-red-600 to-rose-700',
+        bgColor: 'bg-red-50',
+        borderColor: 'border-red-200',
+        textColor: 'text-red-800',
+        badgeColor: 'bg-red-100 text-red-700',
+    },
     error: {
         emoji: '⚠️',
         title: 'Something Went Wrong',

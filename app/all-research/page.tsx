@@ -124,6 +124,7 @@ export default function AllResearchPage() {
                                     { label: 'Complete (status=1)', url: '/api/all-research/callback?status=1&uid=[identifier]', color: 'text-green-700' },
                                     { label: 'Terminate (status=2)', url: '/api/all-research/callback?status=2&uid=[identifier]', color: 'text-orange-700' },
                                     { label: 'Quota Full (status=3)', url: '/api/all-research/callback?status=3&uid=[identifier]', color: 'text-red-700' },
+                                    { label: 'Security Term (status=4)', url: '/api/all-research/callback?status=4&uid=[identifier]', color: 'text-rose-700' },
                                 ].map(({ label, url, color }) => (
                                     <div key={label} className="flex items-center gap-3">
                                         <span className={`text-xs font-semibold w-36 shrink-0 ${color}`}>{label}:</span>

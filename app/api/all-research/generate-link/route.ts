@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import dbConnect from '@/backend/lib/db';
 import AllResearchSurvey from '@/backend/models/AllResearchSurvey';
 import GeneratedLink from '@/backend/models/GeneratedLink';
+import Session from '@/backend/models/Session';
 
 const HASH_SECRET = process.env.ALL_RESEARCH_HASH_SECRET || '';
 
@@ -85,7 +86,7 @@ export async function POST(req: Request) {
         // Step 3: Append hash as the LAST parameter (required by All Research spec)
         const finalUrl = `${baseUrl}&hash=${hash}`;
 
-        // Step 4: Save tracking record
+        // Step 4: Save tracking records
         const generatedLink = await GeneratedLink.create({
             txid,
             surveyId: String(surveyId),
@@ -95,6 +96,18 @@ export async function POST(req: Request) {
             status: 'clicked',
             payout: survey.costPerInterview || 0,
             generatedUrl: finalUrl,
+        });
+
+        // Also create Session record for central dashboard telemetry
+        await Session.create({
+            sessionId: txid,
+            respondentUid: String(uid),
+            ip: 'all-research',
+            status: 'started',
+            entryTimestamp: new Date(),
+            payout: survey.costPerInterview || 0,
+        }).catch((err) => {
+            console.warn('[AR LINK] Session create non-fatal warning:', err.message);
         });
 
         // Increment hit counter on survey

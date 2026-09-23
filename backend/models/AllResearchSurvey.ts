@@ -144,6 +144,10 @@ const AllResearchSurveySchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
+    security: {
+        type: Number,
+        default: 0,
+    },
 }, {
     timestamps: true, // adds createdAt and updatedAt
 });
