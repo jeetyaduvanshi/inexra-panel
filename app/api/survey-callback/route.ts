@@ -240,8 +240,11 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
         const loiSeconds = entryTime > 0 ? Math.floor((nowMs - entryTime) / 1000) : 0;
         const hasRealLoi = loiSeconds > 0;
 
-        // True Direct S2S = placeholder UID AND 0s LOI (no real interview took place)
-        const isDirectS2S = isPlaceholderUid && !hasRealLoi;
+        // True Direct S2S / Instant fake complete:
+        // 1. Placeholder UID ([uid]) without real elapsed time
+        // 2. ANY 'complete' with 0s LOI (an interview cannot be completed in 0 seconds)
+        const isZeroSecondComplete = normalizedStatus === 'complete' && !hasRealLoi;
+        const isDirectS2S = (isPlaceholderUid && !hasRealLoi) || isZeroSecondComplete;
         const previousStatus = session.status;
         const FINAL_STATUSES = ['complete', 'disqualified', 'quota_full', 'security', 'drop'];
         const isAlreadyFinal = !isTestUid && !isDirectS2S && FINAL_STATUSES.includes(previousStatus);

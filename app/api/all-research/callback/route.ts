@@ -100,23 +100,30 @@ export async function GET(req: Request) {
             return NextResponse.redirect(successRedirect);
         }
 
+        // Check Length of Interview (LOI)
+        const entryTime = link.createdAt ? new Date(link.createdAt).getTime() : 0;
+        const nowMs = Date.now();
+        const loiSeconds = entryTime > 0 ? Math.floor((nowMs - entryTime) / 1000) : 0;
+        // Any complete in 0 seconds is impossible -> force to 'drop'
+        const effectiveStatus = (mappedStatus === 'complete' && loiSeconds <= 0) ? 'drop' : mappedStatus;
+
         // Fetch survey to get CPI for payout
         const survey = await AllResearchSurvey.findOne({ surveyId: link.surveyId });
-        const payout = mappedStatus === 'complete' ? (survey?.costPerInterview || link.payout || 0) : 0;
+        const payout = effectiveStatus === 'complete' ? (survey?.costPerInterview || link.payout || 0) : 0;
 
         // Update GeneratedLink status
         await GeneratedLink.findOneAndUpdate(
             { txid },
-            { status: mappedStatus, payout, updatedAt: new Date() }
+            { status: effectiveStatus, payout, updatedAt: new Date() }
         );
 
         // Update survey stats
         if (survey) {
             const increment: Record<string, number> = {};
-            if (mappedStatus === 'complete') increment['completes'] = 1;
-            else if (mappedStatus === 'disqualified') increment['terminates'] = 1;
-            else if (mappedStatus === 'quota_full') increment['quotaFull'] = 1;
-            else if (mappedStatus === 'security') increment['security'] = 1;
+            if (effectiveStatus === 'complete') increment['completes'] = 1;
+            else if (effectiveStatus === 'disqualified') increment['terminates'] = 1;
+            else if (effectiveStatus === 'quota_full') increment['quotaFull'] = 1;
+            else if (effectiveStatus === 'security') increment['security'] = 1;
 
             if (Object.keys(increment).length > 0) {
                 await AllResearchSurvey.findOneAndUpdate(
@@ -130,7 +137,7 @@ export async function GET(req: Request) {
         await Session.findOneAndUpdate(
             { sessionId: txid },
             {
-                status: mappedStatus,
+                status: effectiveStatus,
                 exitTimestamp: new Date(),
                 payout,
             },
@@ -139,7 +146,7 @@ export async function GET(req: Request) {
             console.warn('[AR CALLBACK] Session update non-fatal warning:', err.message);
         });
 
-        console.log(`[AR CALLBACK] txid=${txid} surveyId=${link.surveyId} status=${mappedStatus} payout=${payout}`);
+        console.log(`[AR CALLBACK] txid=${txid} surveyId=${link.surveyId} status=${effectiveStatus} payout=${payout}`);
 
         return NextResponse.redirect(successRedirect);
 
