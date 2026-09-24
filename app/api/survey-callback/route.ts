@@ -5,6 +5,7 @@ import Session from '@/backend/models/Session';
 import Supplier from '@/backend/models/Supplier';
 import Project from '@/backend/models/Project';
 import GeneratedLink from '@/backend/models/GeneratedLink';
+import AllResearchSurvey from '@/backend/models/AllResearchSurvey';
 import { getBaseUrl } from '@/backend/lib/baseUrl';
 
 // ─── Status Normalization ───────────────────────────────────────────────────
@@ -104,14 +105,153 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
     try {
         await dbConnect();
 
+        // ── Priority Check: GeneratedLink (All Research, Zamplia, etc.) ──
+        let matchedLink = null;
+        if (sessionId || uid) {
+            matchedLink = await GeneratedLink.findOne({
+                $or: [
+                    ...(sessionId ? [{ txid: sessionId }, { uid: sessionId }] : []),
+                    ...(uid ? [{ txid: uid }, { uid: uid }] : []),
+                ],
+            });
+        }
+
+        if (matchedLink) {
+            if (matchedLink.vendor === 'all-research') {
+                const arSurvey = await AllResearchSurvey.findOne({ surveyId: matchedLink.surveyId });
+                const finalStatuses = ['complete', 'disqualified', 'quota_full', 'security', 'drop'];
+                const isAlreadyFinal = finalStatuses.includes(matchedLink.status);
+
+                const entryTime = matchedLink.createdAt ? new Date(matchedLink.createdAt).getTime() : 0;
+                const nowMs = Date.now();
+                const loiSeconds = entryTime > 0 ? Math.floor((nowMs - entryTime) / 1000) : 0;
+                const effectiveStatus = (normalizedStatus === 'complete' && entryTime > 0 && loiSeconds <= 0) ? 'drop' : normalizedStatus;
+                const payout = effectiveStatus === 'complete' ? (arSurvey?.costPerInterview || matchedLink.payout || 0) : 0;
+
+                const projectSid = arSurvey?.surveyCode || arSurvey?.surveyId || matchedLink.surveyId || 'VM';
+                const resolvedIp = clientIp || (matchedLink.ip && matchedLink.ip !== 'unknown' && matchedLink.ip !== 'generated' ? matchedLink.ip : '');
+
+                if (!isAlreadyFinal) {
+                    await GeneratedLink.findOneAndUpdate(
+                        { _id: matchedLink._id },
+                        {
+                            status: effectiveStatus,
+                            payout,
+                            updatedAt: new Date(),
+                            ...(clientIp && clientIp !== 'unknown' ? { ip: clientIp } : {}),
+                        }
+                    );
+
+                    if (arSurvey) {
+                        const increment: Record<string, number> = {};
+                        if (effectiveStatus === 'complete') increment['completes'] = 1;
+                        else if (effectiveStatus === 'disqualified') increment['terminates'] = 1;
+                        else if (effectiveStatus === 'quota_full') increment['quotaFull'] = 1;
+                        else if (effectiveStatus === 'security') increment['security'] = 1;
+
+                        if (Object.keys(increment).length > 0) {
+                            await AllResearchSurvey.findOneAndUpdate(
+                                { surveyId: matchedLink.surveyId },
+                                { $inc: increment }
+                            );
+                        }
+                    }
+
+                    await Session.findOneAndUpdate(
+                        { sessionId: matchedLink.txid },
+                        {
+                            respondentUid: matchedLink.uid,
+                            status: effectiveStatus,
+                            payout,
+                            exitTimestamp: new Date(),
+                            exitIp: clientIp || '',
+                            ...(clientIp && clientIp !== 'unknown' ? { ip: clientIp } : {}),
+                        },
+                        { upsert: true }
+                    );
+                }
+
+                if (shouldRedirect) {
+                    return resultPageRedirect(
+                        baseUrl,
+                        effectiveStatus === 'drop' ? 'disqualified' : rawStatus,
+                        matchedLink.uid,
+                        matchedLink.txid,
+                        projectSid as any,
+                        resolvedIp
+                    );
+                }
+
+                return NextResponse.json({
+                    success: true,
+                    message: isAlreadyFinal
+                        ? `All Research transaction already processed as: ${matchedLink.status}`
+                        : `All Research transaction updated to: ${effectiveStatus}`,
+                    duplicate: isAlreadyFinal,
+                    vendor: 'all-research',
+                    data: {
+                        txid: matchedLink.txid,
+                        uid: matchedLink.uid,
+                        surveyId: matchedLink.surveyId,
+                        status: isAlreadyFinal ? matchedLink.status : effectiveStatus,
+                        payout,
+                    },
+                });
+            } else {
+                // Other vendor / Zamplia
+                const finalStatuses = ['complete', 'disqualified', 'quota_full', 'security', 'drop'];
+                const isDuplicate = finalStatuses.includes(matchedLink.status);
+
+                if (!isDuplicate) {
+                    await GeneratedLink.findOneAndUpdate(
+                        { _id: matchedLink._id },
+                        {
+                            status: normalizedStatus,
+                            updatedAt: new Date(),
+                        }
+                    );
+                }
+
+                if (shouldRedirect) {
+                    return resultPageRedirect(
+                        baseUrl,
+                        rawStatus,
+                        matchedLink.uid,
+                        matchedLink.txid,
+                        matchedLink.surveyId as any,
+                        clientIp
+                    );
+                }
+
+                return NextResponse.json({
+                    success: true,
+                    message: isDuplicate
+                        ? `Legacy transaction already processed as: ${matchedLink.status}`
+                        : `Legacy transaction updated to: ${normalizedStatus}`,
+                    duplicate: isDuplicate,
+                    legacy: true,
+                    data: {
+                        uid: matchedLink.uid,
+                        surveyId: matchedLink.surveyId,
+                        status: isDuplicate ? matchedLink.status : normalizedStatus,
+                    },
+                });
+            }
+        }
+
         // 3. Find Session Record
         // Priority 1: Exact sessionId match if provided
-        // Priority 2: respondentUid + projectId match (if pid provided)
-        // Priority 3: Latest respondentUid match
+        // Priority 2: Match uid as sessionId
+        // Priority 3: respondentUid + projectId match (if pid provided)
+        // Priority 4: Latest respondentUid match
         let session = null;
 
         if (sessionId) {
             session = await Session.findOne({ sessionId });
+        }
+
+        if (!session && uid) {
+            session = await Session.findOne({ sessionId: uid });
         }
 
         if (!session && uid) {
@@ -132,39 +272,6 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
 
             // Get the most recent session for this respondent
             session = await Session.findOne(query).sort({ entryTimestamp: -1, createdAt: -1 });
-        }
-
-        // ── Fallback to GeneratedLink (Zamplia legacy compatibility) ──
-        if (!session && uid) {
-            const legacyLink = await GeneratedLink.findOne({ uid });
-            if (legacyLink) {
-                const finalStatuses = ['complete', 'disqualified', 'quota_full', 'security', 'drop'];
-                const isDuplicate = finalStatuses.includes(legacyLink.status);
-
-                if (!isDuplicate) {
-                    await GeneratedLink.findOneAndUpdate(
-                        { uid },
-                        {
-                            status: normalizedStatus,
-                            updatedAt: new Date(),
-                        }
-                    );
-                }
-
-                return NextResponse.json({
-                    success: true,
-                    message: isDuplicate
-                        ? `Legacy transaction already processed as: ${legacyLink.status}`
-                        : `Legacy transaction updated to: ${normalizedStatus}`,
-                    duplicate: isDuplicate,
-                    legacy: true,
-                    data: {
-                        uid,
-                        surveyId: legacyLink.surveyId,
-                        status: isDuplicate ? legacyLink.status : normalizedStatus,
-                    },
-                });
-            }
         }
 
         // 4. Load Supplier and Project or auto-create session if missing

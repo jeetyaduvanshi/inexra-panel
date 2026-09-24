@@ -119,10 +119,15 @@ export async function GET(req: Request) {
             }
         }
 
-        // Find transaction record (by txid)
+        // Find transaction record (by txid or uid)
         let link = await GeneratedLink.findOne({ txid, vendor: 'all-research' });
         if (!link) {
-            link = await GeneratedLink.findOne({ txid });
+            link = await GeneratedLink.findOne({
+                $or: [
+                    { txid },
+                    { uid: txid },
+                ]
+            });
         }
 
         if (!link) {
@@ -162,14 +167,14 @@ export async function GET(req: Request) {
         const nowMs = Date.now();
         const loiSeconds = entryTime > 0 ? Math.floor((nowMs - entryTime) / 1000) : 0;
         // Any complete in 0 seconds is impossible -> force to 'drop'
-        const effectiveStatus = (mappedStatus === 'complete' && loiSeconds <= 0) ? 'drop' : mappedStatus;
+        const effectiveStatus = (mappedStatus === 'complete' && entryTime > 0 && loiSeconds <= 0) ? 'drop' : mappedStatus;
 
         // Payout calculation
         const payout = effectiveStatus === 'complete' ? (survey?.costPerInterview || link.payout || 0) : 0;
 
         // Update GeneratedLink status and IP
         await GeneratedLink.findOneAndUpdate(
-            { txid },
+            { _id: link._id },
             {
                 status: effectiveStatus,
                 payout,
@@ -198,9 +203,11 @@ export async function GET(req: Request) {
         await Session.findOneAndUpdate(
             { sessionId: txid },
             {
+                respondentUid,
                 status: effectiveStatus,
                 exitTimestamp: new Date(),
                 payout,
+                exitIp: clientIp || '',
                 ...(clientIp && clientIp !== 'unknown' ? { ip: clientIp } : {}),
             },
             { upsert: true }
