@@ -48,7 +48,7 @@ export function MonthlyStatistics() {
         month.total ? ((value / month.total) * 100).toFixed(2) : '0.00';
 
     const stats: StatItem[] = [
-        { key: "complete", label: "Completed", modalTitle: "Complete", percentage: percentage(month.complete), value: month.complete, total: month.total, color: "text-blue-600" },
+        { key: "complete", label: "Completed", modalTitle: "Complete", percentage: percentage(month.complete), value: month.complete, total: month.total, color: "text-green-600" },
         { key: "disqualified", label: "Disqualified", modalTitle: "Disqualified", percentage: percentage(month.disqualified), value: month.disqualified, total: month.total, color: "text-cyan-500" },
         { key: "quota_full", label: "Quotafull", modalTitle: "Quota Full", percentage: percentage(month.quota_full), value: month.quota_full, total: month.total, color: "text-yellow-500" },
         { key: "security", label: "Security Term", modalTitle: "Security Term", percentage: percentage(month.security), value: month.security, total: month.total, color: "text-red-500" },
