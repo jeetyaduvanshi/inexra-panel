@@ -16,7 +16,7 @@ async function countsSince(start: Date) {
                 status: { $in: OUTCOME_STATUSES },
                 $or: [
                     { exitTimestamp: { $gte: start } },
-                    { updatedAt: { $gte: start } },
+                    { entryTimestamp: { $gte: start } },
                     { createdAt: { $gte: start } },
                 ],
             },
