@@ -6,7 +6,10 @@ import { LoaderOverlay } from '@/frontend/components/ui/LoaderOverlay';
 import { AllResearchSurveyTable, AllResearchSurvey } from '@/frontend/components/all-research/AllResearchSurveyTable';
 import { AllResearchLinkGenerator } from '@/frontend/components/all-research/AllResearchLinkGenerator';
 import { AllResearchTelemetry } from '@/frontend/components/all-research/AllResearchTelemetry';
-import { RefreshCw, Info } from 'lucide-react';
+import { RefreshCw, Info, Activity, Layers, Link2, LayoutList } from 'lucide-react';
+import { cn } from '@/frontend/lib/utils';
+
+type TabType = 'telemetry' | 'surveys' | 'generator' | 'all';
 
 export default function AllResearchPage() {
     const [surveys, setSurveys] = useState<AllResearchSurvey[]>([]);
@@ -17,7 +20,19 @@ export default function AllResearchPage() {
     const [lastSynced, setLastSynced] = useState<string | null>(null);
     const [showCallbackInfo, setShowCallbackInfo] = useState(false);
     const [filteredCount, setFilteredCount] = useState<number | null>(null);
+    const [activeTab, setActiveTab] = useState<TabType>('telemetry');
     const linkGeneratorRef = useRef<HTMLDivElement>(null);
+
+    // Sync tab from URL query params on mount
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab') as TabType;
+            if (tab && ['telemetry', 'surveys', 'generator', 'all'].includes(tab)) {
+                setActiveTab(tab);
+            }
+        }
+    }, []);
 
     // Load cached surveys from DB on mount
     useEffect(() => {
@@ -60,8 +75,20 @@ export default function AllResearchPage() {
         }
     };
 
+    const handleTabChange = (tab: TabType) => {
+        setActiveTab(tab);
+        if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tab);
+            window.history.replaceState(null, '', url.toString());
+        }
+    };
+
     const handleGenerateLink = (surveyId: string) => {
         setSelectedSurveyId(surveyId);
+        if (activeTab === 'surveys') {
+            handleTabChange('generator');
+        }
         setTimeout(() => {
             linkGeneratorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
@@ -78,14 +105,13 @@ export default function AllResearchPage() {
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-6 py-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            {/* All Research Logo placeholder */}
-                            <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                            <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-xs">
                                 AR
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold text-gray-900">All Research</h1>
+                                <h1 className="text-xl font-bold text-gray-900">All Research Hub</h1>
                                 <p className="text-xs text-gray-500">
-                                    Supplier API Integration
+                                    Live Supplier API Telemetry, Surveys Feed & Link Management
                                     {lastSynced && (
                                         <span className="ml-2 text-emerald-600">• Last synced: {lastSynced}</span>
                                     )}
@@ -149,6 +175,86 @@ export default function AllResearchPage() {
                     )}
                 </div>
 
+                {/* View Navigation Tabs */}
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2 rounded-xl border border-gray-200 shadow-xs">
+                    <div className="flex items-center gap-1.5 overflow-x-auto">
+                        <button
+                            type="button"
+                            onClick={() => handleTabChange('telemetry')}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer",
+                                activeTab === 'telemetry'
+                                    ? "bg-blue-600 text-white shadow-xs"
+                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                            )}
+                        >
+                            <Activity className="w-4 h-4" />
+                            Live Telemetry & Activity
+                            <span className={cn(
+                                "px-1.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider",
+                                activeTab === 'telemetry' ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"
+                            )}>
+                                Live
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleTabChange('surveys')}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer",
+                                activeTab === 'surveys'
+                                    ? "bg-blue-600 text-white shadow-xs"
+                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                            )}
+                        >
+                            <Layers className="w-4 h-4" />
+                            Surveys Feed
+                            <span className={cn(
+                                "px-2 py-0.5 text-xs font-semibold rounded-full",
+                                activeTab === 'surveys' ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
+                            )}>
+                                {filteredCount !== null ? filteredCount : surveys.length}
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleTabChange('generator')}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer",
+                                activeTab === 'generator'
+                                    ? "bg-blue-600 text-white shadow-xs"
+                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                            )}
+                        >
+                            <Link2 className="w-4 h-4" />
+                            Link Generator
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleTabChange('all')}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer",
+                                activeTab === 'all'
+                                    ? "bg-blue-600 text-white shadow-xs"
+                                    : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                            )}
+                        >
+                            <LayoutList className="w-4 h-4" />
+                            Show All
+                        </button>
+                    </div>
+
+                    <div className="text-xs text-gray-400 hidden md:block pr-2">
+                        {activeTab === 'telemetry' && "Showing live respondent telemetry & performance KPIs"}
+                        {activeTab === 'surveys' && "Showing live available surveys catalog"}
+                        {activeTab === 'generator' && "Generate customized test or respondent survey links"}
+                        {activeTab === 'all' && "Showing all sections with Telemetry at top"}
+                    </div>
+                </div>
+
                 {/* Error Banner */}
                 {error && (
                     <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-start gap-2">
@@ -160,60 +266,69 @@ export default function AllResearchPage() {
                     </div>
                 )}
 
-                {/* Survey Count Bar */}
-                {surveys.length > 0 && (
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span>
-                            Showing{' '}
-                            <span className="font-semibold text-gray-900">
-                                {filteredCount !== null ? filteredCount : surveys.length}
-                            </span>
-                            {filteredCount !== null && filteredCount !== surveys.length && (
-                                <span className="text-gray-400 font-normal"> of {surveys.length}</span>
-                            )}{' '}
-                            surveys
-                        </span>
-                        <span className="text-gray-300">|</span>
-                        <span>
-                            Live:{' '}
-                            <span className="font-semibold text-green-600">
-                                {surveys.filter((s) => s.surveyStatus === 'Live').length}
-                            </span>
-                        </span>
-                        <span>
-                            Paused:{' '}
-                            <span className="font-semibold text-yellow-600">
-                                {surveys.filter((s) => s.surveyStatus === 'Paused').length}
-                            </span>
-                        </span>
-                    </div>
+                {/* 1. Live Telemetry & Activity (Shown on 'telemetry' and 'all' views) - Always at the TOP */}
+                {(activeTab === 'telemetry' || activeTab === 'all') && (
+                    <AllResearchTelemetry />
                 )}
 
-                {/* Survey Table Card */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                    <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-between">
-                        <h2 className="text-sm font-semibold text-gray-700">Live Projects from All Research</h2>
-                        <span className="text-xs text-gray-400">
-                            {filteredCount !== null && filteredCount !== surveys.length
-                                ? `${filteredCount} of ${surveys.length} projects`
-                                : `${surveys.length} projects`}
-                        </span>
+                {/* 2. Survey Table (Shown on 'surveys' and 'all' views) */}
+                {(activeTab === 'surveys' || activeTab === 'all') && (
+                    <>
+                        {/* Survey Count Bar */}
+                        {surveys.length > 0 && (
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                                <span>
+                                    Showing{' '}
+                                    <span className="font-semibold text-gray-900">
+                                        {filteredCount !== null ? filteredCount : surveys.length}
+                                    </span>
+                                    {filteredCount !== null && filteredCount !== surveys.length && (
+                                        <span className="text-gray-400 font-normal"> of {surveys.length}</span>
+                                    )}{' '}
+                                    surveys
+                                </span>
+                                <span className="text-gray-300">|</span>
+                                <span>
+                                    Live:{' '}
+                                    <span className="font-semibold text-green-600">
+                                        {surveys.filter((s) => s.surveyStatus === 'Live').length}
+                                    </span>
+                                </span>
+                                <span>
+                                    Paused:{' '}
+                                    <span className="font-semibold text-yellow-600">
+                                        {surveys.filter((s) => s.surveyStatus === 'Paused').length}
+                                    </span>
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Survey Table Card */}
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-between">
+                                <h2 className="text-sm font-semibold text-gray-700">Live Projects from All Research</h2>
+                                <span className="text-xs text-gray-400">
+                                    {filteredCount !== null && filteredCount !== surveys.length
+                                        ? `${filteredCount} of ${surveys.length} projects`
+                                        : `${surveys.length} projects`}
+                                </span>
+                            </div>
+                            <AllResearchSurveyTable
+                                surveys={surveys}
+                                isLoading={isLoading}
+                                onGenerateLink={handleGenerateLink}
+                                onFilteredCountChange={setFilteredCount}
+                            />
+                        </div>
+                    </>
+                )}
+
+                {/* 3. Link Generator Card (Shown on 'generator' and 'all' views) */}
+                {(activeTab === 'generator' || activeTab === 'all') && (
+                    <div ref={linkGeneratorRef}>
+                        <AllResearchLinkGenerator selectedSurveyId={selectedSurveyId} />
                     </div>
-                    <AllResearchSurveyTable
-                        surveys={surveys}
-                        isLoading={isLoading}
-                        onGenerateLink={handleGenerateLink}
-                        onFilteredCountChange={setFilteredCount}
-                    />
-                </div>
-
-                {/* All Research Live Telemetry & Activity Card */}
-                <AllResearchTelemetry />
-
-                {/* Link Generator Card */}
-                <div ref={linkGeneratorRef}>
-                    <AllResearchLinkGenerator selectedSurveyId={selectedSurveyId} />
-                </div>
+                )}
 
             </main>
         </div>

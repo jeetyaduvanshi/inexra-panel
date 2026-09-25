@@ -457,9 +457,9 @@ export function AllResearchSurveyTable({
                     </Button>
                 </div>
             ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-[620px] overflow-y-auto border-t border-gray-100">
                     <table className="w-full text-sm">
-                        <thead>
+                        <thead className="sticky top-0 bg-gray-50 z-10 shadow-xs">
                             <tr className="bg-gray-50 border-b border-gray-200">
                                 <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
                                 <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Survey ID</th>
