@@ -123,6 +123,7 @@ export const ALL_PROJECT_MANAGERS = [
     "Hardik Saini",
     "Amarjeet Yadav",
     "Kunal Saini",
+    "Amit Shah",
 ];
 
 export const ALL_SALES_MANAGERS = [
