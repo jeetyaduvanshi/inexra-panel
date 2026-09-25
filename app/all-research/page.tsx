@@ -15,6 +15,7 @@ export default function AllResearchPage() {
     const [error, setError] = useState('');
     const [lastSynced, setLastSynced] = useState<string | null>(null);
     const [showCallbackInfo, setShowCallbackInfo] = useState(false);
+    const [filteredCount, setFilteredCount] = useState<number | null>(null);
     const linkGeneratorRef = useRef<HTMLDivElement>(null);
 
     // Load cached surveys from DB on mount
@@ -162,17 +163,26 @@ export default function AllResearchPage() {
                 {surveys.length > 0 && (
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span>
-                            Showing <span className="font-semibold text-gray-900">{surveys.length}</span> surveys
+                            Showing{' '}
+                            <span className="font-semibold text-gray-900">
+                                {filteredCount !== null ? filteredCount : surveys.length}
+                            </span>
+                            {filteredCount !== null && filteredCount !== surveys.length && (
+                                <span className="text-gray-400 font-normal"> of {surveys.length}</span>
+                            )}{' '}
+                            surveys
                         </span>
                         <span className="text-gray-300">|</span>
                         <span>
-                            Live: <span className="font-semibold text-green-600">
-                                {surveys.filter(s => s.surveyStatus === 'Live').length}
+                            Live:{' '}
+                            <span className="font-semibold text-green-600">
+                                {surveys.filter((s) => s.surveyStatus === 'Live').length}
                             </span>
                         </span>
                         <span>
-                            Paused: <span className="font-semibold text-yellow-600">
-                                {surveys.filter(s => s.surveyStatus === 'Paused').length}
+                            Paused:{' '}
+                            <span className="font-semibold text-yellow-600">
+                                {surveys.filter((s) => s.surveyStatus === 'Paused').length}
                             </span>
                         </span>
                     </div>
@@ -183,13 +193,16 @@ export default function AllResearchPage() {
                     <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-between">
                         <h2 className="text-sm font-semibold text-gray-700">Live Projects from All Research</h2>
                         <span className="text-xs text-gray-400">
-                            {surveys.length} projects
+                            {filteredCount !== null && filteredCount !== surveys.length
+                                ? `${filteredCount} of ${surveys.length} projects`
+                                : `${surveys.length} projects`}
                         </span>
                     </div>
                     <AllResearchSurveyTable
                         surveys={surveys}
                         isLoading={isLoading}
                         onGenerateLink={handleGenerateLink}
+                        onFilteredCountChange={setFilteredCount}
                     />
                 </div>
 
