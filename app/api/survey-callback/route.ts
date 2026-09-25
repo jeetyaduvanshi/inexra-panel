@@ -272,6 +272,33 @@ async function processSurveyCallback(params: ProcessCallbackParams): Promise<Nex
 
             // Get the most recent session for this respondent
             session = await Session.findOne(query).sort({ entryTimestamp: -1, createdAt: -1 });
+
+            // Fallback Priority 4: If no session was found with the specified pid, search for any
+            // active or recent session for this respondentUid (within last 24h).
+            // This handles cases where client redirect/callback has a mismatched pid or typo.
+            if (!session) {
+                const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                // 1. Look for a started session first
+                session = await Session.findOne({
+                    respondentUid: uid,
+                    status: 'started',
+                    createdAt: { $gte: oneDayAgo },
+                }).sort({ entryTimestamp: -1, createdAt: -1 });
+
+                // 2. If not found, look for any session with this respondentUid created in the last 24h
+                if (!session) {
+                    session = await Session.findOne({
+                        respondentUid: uid,
+                        createdAt: { $gte: oneDayAgo },
+                    }).sort({ entryTimestamp: -1, createdAt: -1 });
+                }
+
+                if (session) {
+                    console.log(
+                        `[SURVEY-CALLBACK] Found matching session via UID fallback for uid=${uid}. Original projectId=${session.projectId}, callback pid=${pid}`
+                    );
+                }
+            }
         }
 
         // 4. Load Supplier and Project or auto-create session if missing
