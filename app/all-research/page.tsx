@@ -5,6 +5,7 @@ import { Header } from '@/frontend/components/layout/Header';
 import { LoaderOverlay } from '@/frontend/components/ui/LoaderOverlay';
 import { AllResearchSurveyTable, AllResearchSurvey } from '@/frontend/components/all-research/AllResearchSurveyTable';
 import { AllResearchLinkGenerator } from '@/frontend/components/all-research/AllResearchLinkGenerator';
+import { AllResearchTelemetry } from '@/frontend/components/all-research/AllResearchTelemetry';
 import { RefreshCw, Info } from 'lucide-react';
 
 export default function AllResearchPage() {
@@ -205,6 +206,9 @@ export default function AllResearchPage() {
                         onFilteredCountChange={setFilteredCount}
                     />
                 </div>
+
+                {/* All Research Live Telemetry & Activity Card */}
+                <AllResearchTelemetry />
 
                 {/* Link Generator Card */}
                 <div ref={linkGeneratorRef}>

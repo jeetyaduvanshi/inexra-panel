@@ -42,6 +42,7 @@ export interface SessionRow {
     status: string;
     rawStatus: string;
     country: string;
+    isAllResearch?: boolean;
 }
 
 export function formatTo12Hour(timeStr: string): string {
@@ -80,6 +81,7 @@ export function SessionDetailsModal({
     const [sessions, setSessions] = useState<SessionRow[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
+    const [sourceFilter, setSourceFilter] = useState<"all" | "direct" | "all-research">("all");
     const [copiedUid, setCopiedUid] = useState<string | null>(null);
     const [copiedAll, setCopiedAll] = useState(false);
 
@@ -112,9 +114,16 @@ export function SessionDetailsModal({
     }, [open, status, period]);
 
     const filtered = useMemo(() => {
-        if (!search.trim()) return sessions;
+        let list = sessions;
+        if (sourceFilter === "direct") {
+            list = list.filter((s) => !s.isAllResearch && s.client !== "All Research");
+        } else if (sourceFilter === "all-research") {
+            list = list.filter((s) => s.isAllResearch || s.client === "All Research");
+        }
+
+        if (!search.trim()) return list;
         const q = search.toLowerCase().trim();
-        return sessions.filter(
+        return list.filter(
             (s) =>
                 s.uid.toLowerCase().includes(q) ||
                 s.client.toLowerCase().includes(q) ||
@@ -124,7 +133,7 @@ export function SessionDetailsModal({
                 s.endIp.toLowerCase().includes(q) ||
                 s.refId.toLowerCase().includes(q)
         );
-    }, [sessions, search]);
+    }, [sessions, search, sourceFilter]);
 
     const handleCopyUid = (uid: string) => {
         navigator.clipboard.writeText(uid);
@@ -215,16 +224,58 @@ export function SessionDetailsModal({
                         </Button>
                     </div>
 
-                    {/* Toolbar: Search, Refresh, Copy All, Export */}
+                    {/* Toolbar: Search, Source Filter, Refresh, Copy All, Export */}
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-3">
-                        <div className="relative flex-1 min-w-[240px] max-w-md">
-                            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                            <Input
-                                placeholder="Search by UID, Client, Supplier, PO, IP..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="h-9 pl-9 pr-3 text-xs bg-gray-50/70 border-gray-200 focus:bg-white"
-                            />
+                        <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
+                            <div className="relative flex-1 min-w-[200px] max-w-sm">
+                                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                <Input
+                                    placeholder="Search by UID, Client, Supplier, PO, IP..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    className="h-9 pl-9 pr-3 text-xs bg-gray-50/70 border-gray-200 focus:bg-white"
+                                />
+                            </div>
+
+                            {/* Source Filter Pills: All / Direct / All Research */}
+                            <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50/80 p-0.5 text-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => setSourceFilter("all")}
+                                    className={cn(
+                                        "px-2.5 py-1 rounded-md text-xs transition-all",
+                                        sourceFilter === "all"
+                                            ? "bg-white text-gray-900 shadow-xs font-semibold"
+                                            : "text-gray-500 hover:text-gray-800"
+                                    )}
+                                >
+                                    All ({sessions.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSourceFilter("direct")}
+                                    className={cn(
+                                        "px-2.5 py-1 rounded-md text-xs transition-all",
+                                        sourceFilter === "direct"
+                                            ? "bg-white text-gray-900 shadow-xs font-semibold"
+                                            : "text-gray-500 hover:text-gray-800"
+                                    )}
+                                >
+                                    Direct ({sessions.filter((s) => !s.isAllResearch && s.client !== "All Research").length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSourceFilter("all-research")}
+                                    className={cn(
+                                        "px-2.5 py-1 rounded-md text-xs transition-all",
+                                        sourceFilter === "all-research"
+                                            ? "bg-white text-blue-700 shadow-xs font-semibold"
+                                            : "text-gray-500 hover:text-gray-800"
+                                    )}
+                                >
+                                    All Research ({sessions.filter((s) => s.isAllResearch || s.client === "All Research").length})
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -333,8 +384,14 @@ export function SessionDetailsModal({
                                             <TableCell className="font-medium text-gray-800 py-3 max-w-[160px] truncate" title={row.ourPo}>
                                                 {row.ourPo}
                                             </TableCell>
-                                            <TableCell className="text-gray-700 py-3 max-w-[130px] truncate" title={row.client}>
-                                                {row.client}
+                                            <TableCell className="text-gray-700 py-3 max-w-[130px]" title={row.client}>
+                                                {row.isAllResearch || row.client === "All Research" ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+                                                        All Research
+                                                    </span>
+                                                ) : (
+                                                    <span className="truncate block font-medium text-gray-800">{row.client}</span>
+                                                )}
                                             </TableCell>
                                             <TableCell className="font-mono text-[11px] text-gray-600 py-3">{row.startIp}</TableCell>
                                             <TableCell className="font-mono text-[11px] text-gray-600 py-3">{row.endIp}</TableCell>

@@ -3,6 +3,8 @@ import dbConnect from '@/backend/lib/db';
 import Session from '@/backend/models/Session';
 import Project from '@/backend/models/Project';
 import Supplier from '@/backend/models/Supplier';
+import GeneratedLink from '@/backend/models/GeneratedLink';
+import AllResearchSurvey from '@/backend/models/AllResearchSurvey';
 
 export async function GET(req: Request) {
     try {
@@ -10,6 +12,8 @@ export async function GET(req: Request) {
         // Ensure models are registered for Mongoose population
         void Project;
         void Supplier;
+        void GeneratedLink;
+        void AllResearchSurvey;
 
         const { searchParams } = new URL(req.url);
         const statusParam = (searchParams.get('status') || 'all').toLowerCase().trim();
@@ -68,10 +72,43 @@ export async function GET(req: Request) {
             .populate('supplierId', 'supplierName trackingSlug')
             .lean();
 
+        // 3.1 Lookup GeneratedLink & AllResearchSurvey records for unlinked sessions (e.g. All Research)
+        const unlinkedSessionIds = sessions.filter((s) => !s.projectId).map((s) => s.sessionId).filter(Boolean);
+        const unlinkedUids = sessions.filter((s) => !s.projectId).map((s) => s.respondentUid).filter(Boolean);
+
+        let linkMapByTxid = new Map<string, any>();
+        let linkMapByUid = new Map<string, any>();
+        let arSurveyMap = new Map<string, any>();
+
+        if (unlinkedSessionIds.length > 0 || unlinkedUids.length > 0) {
+            const matchedLinks = await GeneratedLink.find({
+                $or: [
+                    ...(unlinkedSessionIds.length > 0 ? [{ txid: { $in: unlinkedSessionIds } }] : []),
+                    ...(unlinkedUids.length > 0 ? [{ uid: { $in: unlinkedUids } }] : []),
+                ],
+            }).lean();
+
+            linkMapByTxid = new Map(matchedLinks.map((l) => [l.txid, l]));
+            linkMapByUid = new Map(matchedLinks.map((l) => [l.uid, l]));
+
+            const arSurveyIds = matchedLinks
+                .filter((l) => l.vendor === 'all-research' && l.surveyId)
+                .map((l) => String(l.surveyId));
+
+            if (arSurveyIds.length > 0) {
+                const arSurveys = await AllResearchSurvey.find({ surveyId: { $in: arSurveyIds } }).lean();
+                arSurveyMap = new Map(arSurveys.map((s) => [s.surveyId, s]));
+            }
+        }
+
         // 4. Transform into table-ready rows
         const formatted = sessions.map((s, index) => {
             const proj = s.projectId as { _id?: unknown; projectName?: string; parentId?: string; clientName?: string; country?: string } | null;
             const sup = s.supplierId as { _id?: unknown; supplierName?: string; trackingSlug?: string } | null;
+
+            const genLink = (s.sessionId ? linkMapByTxid.get(s.sessionId) : null) || (s.respondentUid ? linkMapByUid.get(s.respondentUid) : null);
+            const isAllResearch = genLink?.vendor === 'all-research' || s.ip === 'all-research';
+            const arSurvey = genLink?.surveyId ? arSurveyMap.get(String(genLink.surveyId)) : null;
 
             const entryDate = s.entryTimestamp ? new Date(s.entryTimestamp) : (s.createdAt ? new Date(s.createdAt) : null);
             const exitDate = s.exitTimestamp ? new Date(s.exitTimestamp) : (s.updatedAt ? new Date(s.updatedAt) : null);
@@ -113,16 +150,46 @@ export async function GET(req: Request) {
                 started: 'Started',
             };
 
+            // Clean up IP: avoid showing 'all-research' as an IP address
+            const cleanStartIp = s.ip && s.ip !== 'unknown' && s.ip !== 'all-research'
+                ? s.ip
+                : (s.exitIp && s.exitIp !== 'unknown' && s.exitIp !== 'all-research' ? s.exitIp : '-');
+            const cleanEndIp = s.exitIp && s.exitIp !== 'unknown' && s.exitIp !== 'all-research'
+                ? s.exitIp
+                : (cleanStartIp !== '-' ? cleanStartIp : '-');
+
+            // Format Client & Supplier
+            let clientName = proj?.clientName;
+            let supplierName = sup?.supplierName;
+            let ourPo = proj?.projectName || (proj?.parentId ? `PO-${proj.parentId}` : '');
+            let country = proj?.country;
+
+            if (isAllResearch) {
+                clientName = 'All Research';
+                supplierName = 'All Research API';
+                ourPo = arSurvey?.surveyName
+                    ? `AR - ${arSurvey.surveyName}`
+                    : (genLink?.surveyId ? `AR - ${genLink.surveyId}` : 'All Research Live Feed');
+                country = arSurvey?.surveyCountry || country || 'Global';
+            } else {
+                if (!clientName) clientName = 'Inexra Direct';
+                if (!supplierName) supplierName = 'Direct / Internal';
+                if (!ourPo) ourPo = 'Direct Link Test';
+                if (!country) country = 'United States';
+            }
+
             return {
                 sn: index + 1,
-                id: proj?._id ? String(proj._id).slice(-6).toUpperCase() : (s._id ? String(s._id).slice(-6).toUpperCase() : '-'),
+                id: proj?._id
+                    ? String(proj._id).slice(-6).toUpperCase()
+                    : (genLink?.surveyId ? String(genLink.surveyId) : (s._id ? String(s._id).slice(-6).toUpperCase() : '-')),
                 fullId: s._id ? String(s._id) : '',
-                supplierId: sup?.trackingSlug || (sup?._id ? String(sup._id).slice(-6) : '-'),
-                supplierName: sup?.supplierName || 'Direct / Internal',
-                ourPo: proj?.projectName || (proj?.parentId ? `PO-${proj.parentId}` : 'Direct Link Test'),
-                client: proj?.clientName || 'Inexra Client',
-                startIp: s.ip && s.ip !== 'unknown' ? s.ip : '-',
-                endIp: s.exitIp && s.exitIp !== 'unknown' ? s.exitIp : (s.ip && s.ip !== 'unknown' ? s.ip : '-'),
+                supplierId: sup?.trackingSlug || (sup?._id ? String(sup._id).slice(-6) : (isAllResearch ? 'AR-API' : '-')),
+                supplierName,
+                ourPo,
+                client: clientName,
+                startIp: cleanStartIp,
+                endIp: cleanEndIp,
                 startTime: formatTime(entryDate),
                 endTime: formatTime(exitDate),
                 startDate: formatDate(entryDate),
@@ -132,7 +199,8 @@ export async function GET(req: Request) {
                 loi: loiStr,
                 status: statusDisplayMap[s.status] || s.status,
                 rawStatus: s.status,
-                country: proj?.country || 'United States',
+                country,
+                isAllResearch,
             };
         });
 
